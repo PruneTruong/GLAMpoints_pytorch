@@ -2,12 +2,8 @@ from os import path as osp
 
 import cv2
 import numpy as np
-import pandas as pd
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import os
-from imageio import imread
 from torch.utils.data import Dataset
 from .homo_generation import homography_sampling, apply_augmentations
 
@@ -84,19 +80,16 @@ class TrainingDataset(Dataset):
 
         name_image = self.list[idx]
         path_original_image = os.path.join(self.path_directory_original_images, name_image)
-        try:
-            image_full = cv2.imread(path_original_image)
-            image_full = center_crop(image_full, self.size)
+        image_full = cv2.imread(path_original_image)
+        image_full = center_crop(image_full, self.size)
 
-            if self.cfg['use_green_channel']:
-                image = image_full[:, :, 1]
-            else:
-                image = cv2.cvtColor(image_full, cv2.COLOR_BGR2GRAY)
+        if self.cfg['use_green_channel']:
+            image = image_full[:, :, 1]
+        else:
+            image = cv2.cvtColor(image_full, cv2.COLOR_BGR2GRAY)
 
-            if self.mask:
-                mask = (image < 230) & (image > 25)
-        except:
-            continue
+        if self.mask:
+            mask = (image < 230) & (image > 25)
 
 
         h1 = homography_sampling(image.shape, self.cfg['sample_homography'], seed=self.seed)

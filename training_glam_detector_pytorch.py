@@ -15,43 +15,34 @@
 # This license file must be retained with all copies of the software,
 # including any modified or derivative versions.
 
+
+
+#https://discuss.pytorch.org/t/why-cant-i-reimplement-my-tensorflow-model-with-pytorch/44347/4
+import time
+import pickle
 import numpy as np
-import math
 import os.path as osp
 import tensorflow as tf
-import cv2
 import os
 import random
 import shutil
 import argparse
 import yaml
-from sklearn.utils import shuffle
+from termcolor import colored
 from dataset.training_dataset import TrainingDataset
-from model_CNN import non_max_suppression, Unet_model_4
+from models.Unet_model import UNet
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
-
-from util.optimize_PWC_flow import train_epoch, validate_epoch
-from util.utils_CNN import load_checkpoint, save_checkpoint
+from utils_training.optimize import train_epoch, validate_epoch
+from utils_training.utils_CNN import load_checkpoint, save_checkpoint
 from tensorboardX import SummaryWriter
 
 
-def training_no_test_set(cfg, plot):
-    save_path = os.path.join(cfg['write_dir'], cfg['name_exp'])
-    # creates the directory to save the images and checkpoints
-    os.makedirs(save_path, exist_ok=True)
-    shutil.copy2(os.path.basename(__file__), save_path)
-
-    # read information from the yaml file
-    nbr = 0
-    epochs = cfg['training']['nbr_epochs']
-    batch_size = cfg['training']['batch_size']
-    distance_threshold = cfg['training']['distance_threshold']
-    loss_training = []
+def training_no_test_set(cfg, compute_metrics):
 
     args = parser.parse_args()
     random.seed(args.seed)
@@ -69,10 +60,19 @@ def training_no_test_set(cfg, plot):
                                              transforms.ToTensor(),
                                              normTransform])
 
+    # read information from the yaml file
+    nbr = 0
+    epochs = cfg['training']['nbr_epochs']
+    batch_size = cfg['training']['batch_size']
+    distance_threshold = cfg['training']['distance_threshold']
 
-    train_dataset = TrainingDataset(path, size, cfg, mask)
+    train_dataset = TrainingDataset(path= opt['path_images_training'], size=(cfg['training']['image_size_h'],
+                                                                             cfg['training']['image_size_w']),
+                                    cfg=cfg, mask=False)
 
-    val_dataset = TrainingDataset(path, size, cfg, mask)
+    val_dataset = TrainingDataset(path= opt['path_images_testing'], size=(cfg['testing']['image_size_h'],
+                                                                          cfg['testing']['image_size_w']),
+                                  cfg=cfg, mask=False)
 
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=batch_size,
@@ -84,14 +84,18 @@ def training_no_test_set(cfg, plot):
                                 shuffle=False,
                                 num_workers=args.n_threads)
 
-    model =
-
+    model = UNet()
+    # attention, expect inputs to have channel first ! 
 
     # Optimizer
     optimizer = \
         optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
-                   lr=args.lr,
-                   weight_decay=args.weight_decay)
+                   lr=cfg['training']['learning_rate'],
+                   weight_decay=0) #torch with weight decay is equivelent to tensorflow tfa.optimizers.AdamW
+    # we used tf.train.AdamOptimizer, which does not have weight decay. however, i dont know what is eauivelent to
+    # the regularisation function in layers of tensorflow
+
+
     # Scheduler
     scheduler = lr_scheduler.MultiStepLR(optimizer,
                                          milestones=[2, 15, 30, 45, 60],
@@ -135,125 +139,77 @@ def training_no_test_set(cfg, plot):
         train_losses = []
 
     # create summary writer
-    save_path = osp.join(args.snapshots, cur_snapshot)
+    save_path = os.path.join(cfg['write_dir'], cfg['name_exp'])
+    # creates the directory to save the images and checkpoints
+    os.makedirs(save_path, exist_ok=True)
+    shutil.copy2(os.path.basename(__file__), save_path)
     train_writer = SummaryWriter(os.path.join(save_path, 'train'))
-    test_writer = SummaryWriter(os.path.join(save_path, 'test'))
-    output_writers = []
-    for i in range(3):
-        output_writers.append(SummaryWriter(os.path.join(save_path, 'test', str(i))))
+    val_writer = SummaryWriter(os.path.join(save_path, 'val'))
 
     model = nn.DataParallel(model)
     model = model.to(device)
 
     # Criterions
-
-
-    for epoch in range(start_epoch, args.n_epoch):
+    for epoch in range(start_epoch, epochs):
         scheduler.step()
         print('starting epoch {}: info scheduler last_epoch is {}, learning rate is {}'.format(epoch,
                                                                                                scheduler.last_epoch,
                                                                                                scheduler.get_lr()))
+        if epoch == 0:
+            nms = cfg['training']['NMS_epoch0']
+        else:
+            nms = cfg['training']['NMS_others']
+
         # Training one epoch
         train_loss = train_epoch(model,
                                  optimizer,
                                  train_dataloader,
+                                 train_writer,
+                                 cfg,
                                  device,
-                                 save_path=os.path.join(save_path, 'train'),
-                                 epoch=epoch,
-                                 criterion_grid=criterion_grid,
-                                 criterion_matchability=criterion_match,
-                                 loss_grid_weights=weights_loss_coeffs)
-        train_losses.append(train_loss)
+                                 epoch,
+                                 nms,
+                                 distance_threshold=distance_threshold,
+                                 compute_metrics=compute_metrics,
+                                 save_path=os.path.join(save_path, 'train'))
         train_writer.add_scalar('train loss', train_loss, epoch)
         train_writer.add_scalar('learning_rate', scheduler.get_lr()[0], epoch)
         print(colored('==> ', 'green') + 'Train average loss:', train_loss)
 
 
+        # TESTING
+        if cfg['testing']['testing'] and epoch % cfg["testing"]["testing_every"] == 0:
+            # Validation
+            val_loss = validate_epoch(model,
+                                      optimizer,
+                                      val_dataloader,
+                                      val_writer,
+                                      cfg,
+                                      device,
+                                      epoch,
+                                      nms,
+                                      distance_threshold=distance_threshold,
+                                      compute_metrics=compute_metrics,
+                                      save_path=os.path.join(save_path, 'val'))
 
-    # as an indication
-    rep_glampoints = []
-    homo_glampoints = []
-    acceptable_homo_glampoints = []
+            print(colored('==> ', 'blue') + 'Val average grid loss :',
+                  val_loss)
+            print(colored('==> ', 'blue') + 'epoch :', epoch + 1)
+            val_writer.add_scalar('val loss', val_loss, epoch)
 
+            if best_val < 0:
+                best_val = val_loss
 
-
-        # compute this as an indication for the training
-        for j in range(len(image1)):
-            rep_glampoints.append(metrics_per_image['{}'.format(j)]['repeatability'])
-            homo_glampoints.append(metrics_per_image['{}'.format(j)]['homography_correct'])
-            acceptable_homo_glampoints.append(metrics_per_image['{}'.format(j)]['class_acceptable'])
-        loss_training_epoch.append(np.sum(tr_loss))
-
-    loss_training.append(np.sum(loss_training_epoch))
-    # as an indication
-    file_metrics_training = open(os.path.join(save_path_test, 'metrics_training.txt'), 'a')
-    file_metrics_training.write('epoch {} \n'.format(epoch))
-    file_metrics_training.write('training: TF CNN, {} homography found on {}, {} are of \
-    acceptable class, rep {}, loss normalised by the number of matches {}\n'.format(np.sum(homo_glampoints),
-                                                                                    len(homo_glampoints),
-                                                                                    np.sum(acceptable_homo_glampoints),
-                                                                                    np.mean(rep_glampoints),
-                                                                                    np.sum(loss_training_epoch)))
-
-
-    # TESTING
-    if cfg['testing']['testing'] and epoch % cfg["testing"]["testing_every"] == 0:
-        # to gather data
-        test_rep_tf = []
-        test_homo_tf = []
-        test_acceptable_homo_tf = []
-        loss_testing_epoch = []
-
-        # Validation
-        val_loss_grid, val_mean_epe = validate_epoch(model,
-                                                     val_dataloader,
-                                                     device,
-                                                     output_writers=output_writers,
-                                                     save_path=os.path.join(save_path, 'test'),
-                                                     epoch=epoch,
-                                                     criterion_grid=criterion_grid,
-                                                     criterion_matchability=criterion_match,
-                                                     loss_grid_weights=weights_loss_coeffs)
-        print(colored('==> ', 'blue') + 'Val average grid loss :',
-              val_loss_grid)
-        print(colored('==> ', 'blue') + 'epoch :', epoch + 1)
-        test_writer.add_scalar('mean EPE', val_mean_epe, epoch)
-        test_writer.add_scalar('val loss', val_loss_grid, epoch)
-        val_losses.append(val_loss_grid)
-        val_epe.append(val_mean_epe)
-
-
-
-            '''
-            if plot and b_t == 0:
-                plot_training(test_image1, test_image2, test_kp_map1, test_kp_map2, test_computed_reward1, test_loss,
-                              test_mask_batch1, test_metrics_per_image, nbr, epoch, save_path_test,
-                              name_to_save='epoch{}_test_batch{}.jpg'.format(epoch, b_t))
-            '''
-
-            for j in range(len(test_image1)):
-                test_rep_tf.append(test_metrics_per_image['{}'.format(j)]['repeatability'])
-                test_homo_tf.append(test_metrics_per_image['{}'.format(j)]['homography_correct'])
-                test_acceptable_homo_tf.append(test_metrics_per_image['{}'.format(j)]['class_acceptable'])
-            loss_testing_epoch.append(np.sum(test_loss))
-
-        # give the results of the loss + write metrics in file
-        loss_testing.append(np.sum(loss_testing_epoch))
-        file_metrics_training.write('test: TF CNN, {} homography found on {}, {} are of \
-        acceptable class, rep {}, loss normalised by the number of matches {}\n\n '.format(np.sum(test_homo_tf),
-        len(test_homo_tf), np.sum(test_acceptable_homo_tf), np.mean(test_rep_tf), np.sum(loss_testing_epoch)))
-
-        if epoch == 0:
-            # compute testing for SIFT only once
-            test_accepted_SIFT, test_repeatability_SIFT, test_SIFT_class_acceptable=\
-                get_sift(test_image1, test_image2, test_homographies)
-            test_rep_SIFT.extend(test_repeatability_SIFT)
-            test_homo_SIFT.extend(test_accepted_SIFT)
-            test_acceptable_homo_SIFT.extend(test_SIFT_class_acceptable)
-            file_metrics_training.write('test: SIFT, {} homography found on {}, {} are of acceptable class, rep {}\n'.format(
-                np.sum(test_homo_SIFT), len(test_homo_SIFT), np.sum(test_acceptable_homo_SIFT), np.mean(test_rep_SIFT)))
-
-    file_metrics_training.close()
+            is_best = val_loss < best_val
+            best_val = min(val_loss, best_val)
+        else:
+            is_best = False
+        save_checkpoint({'epoch': epoch + 1,
+                         'state_dict': model.module.state_dict(),
+                         'optimizer': optimizer.state_dict(),
+                         'scheduler': scheduler.state_dict(),
+                         'best_loss': best_val},
+                        is_best, save_path, 'epoch_{}.pth'.format(epoch + 1))
 
 
 if __name__ == '__main__':
@@ -261,7 +217,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Training the detector')
     parser.add_argument('--path_ymlfile', type=str,
                         help='Path to yaml file.')
-    parser.add_argument('--plot', type=bool, default=False,
+    parser.add_argument('--compute_metrics', type=bool, default=False,
                         help='Plot during training? (default: False).')
 
     opt = parser.parse_args()
@@ -273,4 +229,4 @@ if __name__ == '__main__':
     np.random.seed(0)
     random.seed(0)
 
-    training_no_test_set(cfg, opt.plot)
+    training_no_test_set(cfg, opt.compute_metrics)

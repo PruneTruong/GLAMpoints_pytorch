@@ -1,0 +1,82 @@
+---
+#saving path
+name_exp: 'experiment'
+write_dir: '/path/to/results/folder'
+
+#dataset info
+path_images_training: '/path/to/training/images/'
+path_images_testing: '/path/to/testing/images/'
+
+#augmentation 
+augmentation:
+    use_green_channel: False
+    augmentation_list:
+        - additive_gaussian_noise
+        - random_brightness
+        - random_contrast
+        - add_shade
+        - motion_blur
+        - gamma_correction
+        - opposite
+        - no_aug
+    
+    additive_gaussian_noise:
+        std_min: 0
+        std_max: 1
+    additive_speckle_noise:
+        intensity: 5
+    motion_blur:
+        max_ksize: 15
+    gamma_correction:
+        min_gamma: 0.5
+        max_gamma: 1.5
+
+sample_homography:
+    scaling:
+        use_scaling: True
+        min_scaling_x: 0.7
+        max_scaling_x: 1.3
+        min_scaling_y: 0.7
+        max_scaling_y: 1.3
+    perspective:
+        use_perspective: True
+        min_perspective_x: 0.000001
+        max_perspective_x: 0.0005
+        min_perspective_y: 0.000001
+        max_perspective_y: 0.0005
+    translation:
+        use_translation: True
+        max_horizontal_dis: 20
+        max_vertical_dis: 20
+    shearing:
+        use_shearing: True
+        min_shearing_x: -0.2
+        max_shearing_x: 0.2
+        min_shearing_y: -0.2
+        max_shearing_y: 0.2
+    rotation:
+        use_rotation: True
+        max_angle: 30
+
+    
+#hyperparameters
+training:
+    image_size_h: 256
+    image_size_w: 256
+    load_pre_training: False
+    learning_rate: 0.001
+    nbr_epochs: 200
+    NMS_epoch0: 10
+    NMS_others: 10
+    batch_size: 5
+    distance_threshold: 5
+    plot_every_x_batches: 10
+testing:
+    image_size_h: 256
+    image_size_w: 256
+    testing: True
+    testing_every: 1
+    NMS: 10
+    batch_size: 5
+
+    

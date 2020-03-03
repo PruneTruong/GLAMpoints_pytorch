@@ -4,20 +4,20 @@ import cv2
 from tqdm import tqdm
 import torch
 import torch.nn.functional as F
-from utils.evaluate import epe
-from utils.pixel_wise_mapping import remap_using_flow_fields, remap_using_correspondence_map
-from utils_training.multiscale_loss import multiscaleEPE, realEPE
 from model_CNN import non_max_suppression
 from matplotlib import pyplot as plt
 import time
-from util.utils_CNN import warp_kp, batch, plot_training, find_true_positive_matches, sift, get_sift
-from util.metrics_comparison import get_repeatability, compute_homography, homography_is_accepted, \
+from utils_training.utils_CNN import warp_kp, batch, plot_training, find_true_positive_matches, sift, get_sift
+from utils_training.metrics_comparison import get_repeatability, compute_homography, homography_is_accepted, \
     class_homography, compute_registration_error
 
 
 def compute_reward(image1, image2, kp_map1, kp_map2, homographies, nms, distance_threshold=5, compute_metrics=False):
     reward_batch1 = np.zeros((image1.shape), np.float32)
     mask_batch1 = np.zeros((image1.shape), np.float32)
+    rep_glampoints = []
+    homo_glampoints = []
+    acceptable_homo_glampoints = []
 
     metrics_per_image = {}
     SIFT = cv2.xfeatures2d.SIFT_create()
@@ -119,7 +119,17 @@ def compute_reward(image1, image2, kp_map1, kp_map2, homographies, nms, distance
             metrics['to_plot'] = plot
             metrics_per_image['{}'.format(i)] = metrics
 
-    return reward_batch1, mask_batch1, metrics_per_image
+            rep_glampoints.append(repeatability)
+            homo_glampoints.append(tf_accepted)
+            acceptable_homo_glampoints.append(acceptable_homography)
+
+    if compute_metrics:
+        return reward_batch1, mask_batch1, metrics_per_image, np.mean(rep_glampoints), \
+               float(np.sum(tf_accepted))/float(len(tf_accepted)) if len(tf_accepted) != 0 else 0.0, \
+               float(np.sum(acceptable_homo_glampoints))/float(len(acceptable_homo_glampoints)) if \
+                   len(acceptable_homo_glampoints) != 0 else 0.0
+    else:
+        return reward_batch1, mask_batch1
 
 
 def loss(reward, kpmap, mask):
@@ -127,15 +137,19 @@ def loss(reward, kpmap, mask):
     loss = torch.div_no_nan(loss_matrix,
                             torch.sum(mask, axis=[1, 2, 3]), name='division')
     return loss
+
+
 def train_epoch(net,
                 optimizer,
                 train_loader,
+                train_writer,
+                cfg,
                 device,
                 epoch,
-                train_writer,
-
-                save_path=None,
-                ):
+                nms,
+                distance_threshold=3,
+                compute_metrics=False,
+                save_path=None):
     """
     Training epoch script
     Args:
@@ -174,20 +188,30 @@ def train_epoch(net,
         kp_map1 = net(image1_normed)
 
         # backpropagation will not go through this
-        computed_reward1, mask_batch1, metrics_per_image = compute_reward(image1, image2, kp_map1.clone(), kp_map2.clone(),
+        if compute_metrics:
+            computed_reward1, mask_batch1, metrics_per_image, mean_rep, ratio_correct_homo, ratio_acceptable_homo = \
+            compute_reward(image1, image2, kp_map1.clone(), kp_map2.clone(),
+                           homographies, nms,
+                           distance_threshold=distance_threshold,
+                           compute_metrics=compute_metrics)
+            train_writer.add_scalar('mean_repeatability_per_iter', mean_rep, n_iter)
+            train_writer.add_scalar('ratio_correct_homographies_per_iter', ratio_correct_homo, n_iter)
+            train_writer.add_scalar('ratio_acceptable_homographies_per_iter', ratio_acceptable_homo, n_iter)
+
+        computed_reward1, mask_batch1 = compute_reward(image1, image2, kp_map1.clone(), kp_map2.clone(),
                                                                           homographies, nms,
                                                                           distance_threshold=distance_threshold,
-                                                                          compute_metrics=True)
+                                                                          compute_metrics=compute_metrics)
 
         # loss calculation
         Loss = loss(reward=computed_reward1, kpmap=kp_map1, mask=mask_batch1)
         Loss.backward()
         optimizer.step()
 
-        if plot and b % cfg["training"]["plot_every_x_batches"] == 0:
-            plot_training(image1, image2, kp_map1, kp_map2, computed_reward1, tr_loss, mask_batch1,
-                          metrics_per_image, nbr, epoch, save_path,
-                          name_to_save='epoch{}_batch{}.jpg'.format(epoch, b))
+        if i % cfg["training"]["plot_every_x_batches"] == 0:
+            plot_training(image1, image2, kp_map1, kp_map2, computed_reward1, Loss, mask_batch1,
+                          metrics_per_image, epoch, save_path,
+                          name_to_save='epoch{}_batch{}.jpg'.format(epoch, i))
 
         running_total_loss += Loss.item()
         train_writer.add_scalar('train_loss_per_iter', Loss.item(), n_iter)
@@ -200,13 +224,16 @@ def train_epoch(net,
 
 
 def validate_epoch(net,
-                   val_loader,
-                   device,
-                   epoch,
-                   save_path,
-                   div_flow=1,
-                   loss_grid_weights=None,
-                   apply_mask=False):
+                optimizer,
+                val_loader,
+                val_writer,
+                cfg,
+                device,
+                epoch,
+                nms,
+                distance_threshold=3,
+                compute_metrics=False,
+                save_path=None):
     """
     Validation epoch script
     Args:
@@ -223,22 +250,61 @@ def validate_epoch(net,
         running_total_loss: total validation loss
     """
 
+    n_iter = epoch * len(val_loader)
     net.eval()
 
     running_total_loss = 0
+    rep_per_epoch = []
+    ratio_correct_homo_per_epoch = []
+    ratio_acceptable_homo_per_epoch = []
 
     with torch.no_grad():
         pbar = tqdm(enumerate(val_loader), total=len(val_loader))
-        aepe_array=[]
         for i, mini_batch in pbar:
+            image1 = mini_batch['image1'].to(device)
+            image2 = mini_batch['image2'].to(device)
+            image1_normed = mini_batch['image1_normed'].to(device)
+            image2_normed = mini_batch['image2_normed'].to(device)
+            homographies = mini_batch['H1_to_2']
 
+            kp_map2 = net(image2_normed)
+            kp_map1 = net(image1_normed)
 
+            # backpropagation will not go through this
+            if compute_metrics:
+                computed_reward1, mask_batch1, metrics_per_image, mean_rep, ratio_correct_homo, ratio_acceptable_homo = \
+                    compute_reward(image1, image2, kp_map1.clone(), kp_map2.clone(),
+                                   homographies, nms,
+                                   distance_threshold=distance_threshold,
+                                   compute_metrics=compute_metrics)
+                rep_per_epoch.append(mean_rep)
+                ratio_acceptable_homo_per_epoch.append(ratio_acceptable_homo)
+                ratio_correct_homo_per_epoch.append(ratio_correct_homo)
 
+            computed_reward1, mask_batch1 = compute_reward(image1, image2, kp_map1.clone(), kp_map2.clone(),
+                                                           homographies, nms,
+                                                           distance_threshold=distance_threshold,
+                                                           compute_metrics=compute_metrics)
+
+            # loss calculation
+            Loss = loss(reward=computed_reward1, kpmap=kp_map1, mask=mask_batch1)
+            Loss.backward()
+            optimizer.step()
+
+            if i < 2:
+                plot_training(image1, image2, kp_map1, kp_map2, computed_reward1, Loss, mask_batch1,
+                              metrics_per_image, epoch, save_path,
+                              name_to_save='epoch{}_batch{}.jpg'.format(epoch, i))
 
             running_total_loss += Loss.item()
+            val_writer.add_scalar('train_loss_per_iter', Loss.item(), n_iter)
+            n_iter += 1
             pbar.set_description(
-                ' validation R_total_loss: %.3f/%.3f' % (running_total_loss / (i + 1),
-                                             Loss.item()))
-        mean_epe = np.mean(aepe_array)
+                'training: R_total_loss: %.3f/%.3f' % (running_total_loss / (i + 1),
+                                                       Loss.item()))
+        running_total_loss /= len(val_loader)
+        val_writer.add_scalar('mean_repeatability_per_epoch', mean_rep, epoch)
+        val_writer.add_scalar('ratio_correct_homographies_per_epoch', ratio_correct_homo, epoch)
+        val_writer.add_scalar('ratio_acceptable_homographies_per_epoch', ratio_acceptable_homo, epoch)
 
-    return running_total_loss / len(val_loader), mean_epe
+    return running_total_loss / len(val_loader)
