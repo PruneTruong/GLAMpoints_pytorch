@@ -1,6 +1,41 @@
 # GLAMpoints: Greedily Learned Accurate Match points
 
-This is the (unoptimized) reference implementation of the [ICCV 2019 paper "GLAMPoints: Greedily Learned Accurate Match points"](https://www.retinai.com/glampoints) ([arXiv](https://arxiv.org/pdf/1908.06812.pdf), [supplemental](https://static1.squarespace.com/static/5967a5599de4bb65a7bb9736/t/5d7a6d2b9e03815777188115/1568304461382/Supplementary_Material.pdf)). It enables the training of a domain-specific keypoint detector over non-differentiable registration methods. This code exemplifies the presented method using root SIFT, a homography model and RANSAC optimization.
+This is the pytorch implementation of our paper [ICCV 2019 paper "GLAMPoints: Greedily Learned Accurate Match points"](https://www.retinai.com/glampoints) ([arXiv](https://arxiv.org/pdf/1908.06812.pdf), [supplemental](https://static1.squarespace.com/static/5967a5599de4bb65a7bb9736/t/5d7a6d2b9e03815777188115/1568304461382/Supplementary_Material.pdf)). 
+Please note that the reference implementation, with corresponding results presented in the paper, is in TensorFlow (https://gitlab.com/retinai_sandro/glampoints), therefore the results obtained with this version might be slightly different. 
+
+
+## Reminder of the steps of the training
+
+**Goal of the method**: It enables the training of a domain-specific keypoint detector over non-differentiable registration methods. This code exemplifies the presented method using root SIFT, a homography model and RANSAC optimization.
+
+== Preprocessing ==
+
+- Load data
+- Crop and pad samples to 256x256
+
+== Model ==
+- Create 4-level deep Unet with batch normalization model f
+
+
+== Data selection ==
+- select image I and I'
+- compute transformation g and g'
+- transform image I and I' with g and g' respectively
+- compute relation between images  I->I': g' * g^-1
+- augment: gaussian noise, changes of contrast, illumination, gamma, motion blur and the inverse of image
+
+== Training ==
+
+- compute S=f(I) and S'=f(I')
+- compute NMS for both (N, N')
+- compute root Sift descriptor N, N' (D, D')
+- match points with (N, D), (N', D')
+- find true positives and false positives, where true positives fullfill ||H*x - x'|| <= epsilon for epsilon=3
+- compute reward map R
+- compute mask M
+- compute loss as L = sum( (f(I)-R)**2)*M / sum(M, axis=[1,2,3]) )
+
+
 
 ## DOWNLOAD GIT LFS BEFORE CLONING THIS GIT
 
@@ -20,7 +55,7 @@ git lfs install
 To train the model on your dataset, prepare a folder with images (of approximately same height and width). Configure the file `config_training.yml` with at least `write_dir` and `path_images_training`. Adapt the hyperparameters in `training` to your dataset. With this setup, run the script:
 
 ```bash
-python training_glam_detector.py --path_ymlfile config_training.yaml --plot True
+python training_glam_detector.py --path_ymlfile config_training.yaml --compute_metrics True
 ```
 
 ## Testing
