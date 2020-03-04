@@ -3,9 +3,29 @@
 name_exp: 'experiment'
 write_dir: '/path/to/results/folder'
 
-#dataset info
-path_images_training: '/path/to/training/images/'
-path_images_testing: '/path/to/testing/images/'
+#hyperparameters
+training:
+    TRAIN_DIR: '/path/to/training/images/'
+    image_size_h: 256
+    image_size_w: 256
+    load_pre_training: False
+    learning_rate: 0.001
+    nbr_epochs: 200
+    NMS_epoch0: 10
+    NMS_others: 10
+    batch_size: 5
+    seed: 30
+    distance_threshold: 5
+    plot_every_x_batches: 10
+validation:
+    VAL_DIR: '/path/to/testing/images/'
+    validation: True
+    validation_every: 1
+    image_size_h: 256
+    image_size_w: 256
+    NMS: 10
+    batch_size: 5
+
 
 #augmentation 
 augmentation:
@@ -59,24 +79,6 @@ sample_homography:
         max_angle: 30
 
     
-#hyperparameters
-training:
-    image_size_h: 256
-    image_size_w: 256
-    load_pre_training: False
-    learning_rate: 0.001
-    nbr_epochs: 200
-    NMS_epoch0: 10
-    NMS_others: 10
-    batch_size: 5
-    distance_threshold: 5
-    plot_every_x_batches: 10
-testing:
-    image_size_h: 256
-    image_size_w: 256
-    testing: True
-    testing_every: 1
-    NMS: 10
-    batch_size: 5
+
 
     

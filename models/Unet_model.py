@@ -1,7 +1,7 @@
 
-import torch.nn.functional as F
-
+import numpy as np
 from .unet_parts import *
+from skimage.feature import peak_local_max
 
 
 class UNet(nn.Module):
@@ -45,9 +45,9 @@ class UNet(nn.Module):
 
 
 def non_max_suppression(image, size_filter, proba):
-    non_max=peak_local_max(image, min_distance=size_filter, threshold_abs=proba, \
+    non_max = peak_local_max(image, min_distance=size_filter, threshold_abs=proba, \
                       exclude_border=True, indices=False)
-    kp=np.where(non_max>0)
+    kp = np.where(non_max>0)
     if len(kp[0]) != 0:
         for i in range(len(kp[0]) ):
 

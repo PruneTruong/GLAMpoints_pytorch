@@ -42,7 +42,7 @@ def load_checkpoint(model, optimizer, scheduler, filename='checkpoint.pth.tar'):
         start_epoch = checkpoint['epoch']
         model.load_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
-        scheduler.load_state_dict(checkpoint['scheduler'])
+        #scheduler.load_state_dict(checkpoint['scheduler'])
         try:
             best_val=checkpoint['best_loss']
         except:
@@ -52,22 +52,24 @@ def load_checkpoint(model, optimizer, scheduler, filename='checkpoint.pth.tar'):
     else:
         print("=> no checkpoint found at '{}'".format(filename))
 
-    return model, optimizer, scheduler, start_epoch, best_val
+    return model, optimizer, start_epoch, best_val
 
 
 def plot_training(image1, image2, kp_map1, kp_map2, computed_reward1, loss, mask_batch1, metrics_per_image,
                   nbr, epoch, save_path, name_to_save):
+
     fig, ((axis1, axis2), (axis3, axis4), (axis5, axis6), (axis7, axis8), (axis9, axis10)) = \
         plt.subplots(5, 2, figsize=(20, 20))
-    size_image = image1[nbr, :, :, 0].shape
+    nbr=0
+    size_image = image1[nbr, :, :].shape
     plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0002, hspace=0.4)
     # plot pair of images, red kp are tp points
-    axis1.imshow(image1[nbr, :, :, 0], cmap='gray', vmin=0, vmax=255)
+    axis1.imshow(image1[nbr, :, :], cmap='gray', vmin=0, vmax=255)
     axis1.scatter(metrics_per_image['{}'.format(nbr)]['to_plot']['tp_kp1'][1],
                   metrics_per_image['{}'.format(nbr)]['to_plot']['tp_kp1'][0], s=1, color='red')
     axis1.set_title('epoch{}, img1:original_image'.format(epoch), fontsize='small')
 
-    im = axis2.imshow(image2[nbr, :, :, 0], cmap='gray', vmin=0, vmax=255)
+    im = axis2.imshow(image2[nbr, :, :], cmap='gray', vmin=0, vmax=255)
     axis2.scatter(metrics_per_image['{}'.format(nbr)]['to_plot']['warped_tp_kp1'][1],
                   metrics_per_image['{}'.format(nbr)]['to_plot']['warped_tp_kp1'][0], s=1,
                   color='red')
@@ -75,11 +77,11 @@ def plot_training(image1, image2, kp_map1, kp_map2, computed_reward1, loss, mask
     fig.colorbar(im, ax=axis2)
 
     # plot kp map corresponding to both images
-    axis3.imshow(kp_map1[nbr, :, :, 0], vmin=0.0, vmax=1.0, interpolation='nearest')
+    axis3.imshow(kp_map1[nbr, :, :], vmin=0.0, vmax=1.0, interpolation='nearest')
     axis3.set_title('kp map of image1, max {}, min {}'.format(np.max(kp_map1[nbr]),
                                                               np.min(kp_map1[nbr])),
                     fontsize='small')
-    im4 = axis4.imshow(kp_map2[nbr, :, :, 0], vmin=0.0, vmax=1.0, interpolation='nearest')
+    im4 = axis4.imshow(kp_map2[nbr, :, :], vmin=0.0, vmax=1.0, interpolation='nearest')
     axis4.set_title('kp map of image2', fontsize='small')
     fig.colorbar(im4, ax=axis4)
 
@@ -106,12 +108,12 @@ def plot_training(image1, image2, kp_map1, kp_map2, computed_reward1, loss, mask
     fig.colorbar(im6, ax=axis6)
 
     # plot the reward and the loss function
-    axis7.imshow(computed_reward1[nbr, :, :, 0], vmin=0, vmax=1, interpolation='nearest')
+    axis7.imshow(computed_reward1[nbr, :, :], vmin=0, vmax=1, interpolation='nearest')
     axis7.set_title('computed reward:,\nrepeatability={}, total_nbr_tp_kp={}'.format(
         metrics_per_image['{}'.format(nbr)]['repeatability'],
         metrics_per_image['{}'.format(nbr)]['total_nbr_kp_reward1']), fontsize='small')
 
-    im8 = axis8.imshow(loss[nbr, :, :, 0], cmap='gray', interpolation='nearest')
+    im8 = axis8.imshow(loss[nbr, :, :], cmap='gray', interpolation='nearest')
     axis8.set_title('summed loss {},  max {},\n min {}, mean_part={}'. \
                     format(round(np.sum(loss[nbr]), 2), round(np.max(loss[nbr]), 5),
                            round(np.min(loss[nbr]), 2), round(np.mean(loss[nbr]), 5)),
@@ -119,11 +121,11 @@ def plot_training(image1, image2, kp_map1, kp_map2, computed_reward1, loss, mask
     fig.colorbar(im8, ax=axis8)
 
     # plot the mask and the transformed image according to estimated homography
-    axis9.imshow(mask_batch1[nbr, :, :, 0], vmin=0, vmax=1)
-    axis9.set_title('mask for backpropagation, sum {}'.format(np.sum(mask_batch1[nbr, :, :, 0])))
+    axis9.imshow(mask_batch1[nbr, :, :], vmin=0, vmax=1)
+    axis9.set_title('mask for backpropagation, sum {}'.format(np.sum(mask_batch1[nbr, :, :])))
 
     im10 = axis10.imshow(
-        cv2.warpPerspective(image1[nbr, :, :, 0], metrics_per_image['{}'.format(nbr)]
+        cv2.warpPerspective(image1[nbr, :, :], metrics_per_image['{}'.format(nbr)]
         ['computed_H'], (size_image[1], size_image[0])), cmap='gray', vmin=0, vmax=255)
     axis10.set_title('warped image 1 according to computed homography,\n inlier_ratio={}, '
                      'true_homo={}, class_acceptable={}'.format(

@@ -15,8 +15,6 @@
 # This license file must be retained with all copies of the software,
 # including any modified or derivative versions.
 
-
-
 #https://discuss.pytorch.org/t/why-cant-i-reimplement-my-tensorflow-model-with-pytorch/44347/4
 import time
 import pickle
@@ -29,7 +27,7 @@ import shutil
 import argparse
 import yaml
 from termcolor import colored
-from dataset.training_dataset import TrainingDataset
+from dataset.training_dataset import SyntheticDataset
 from models.Unet_model import UNet
 import torch
 import torch.nn as nn
@@ -52,30 +50,10 @@ def training_no_test_set(cfg, compute_metrics):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    mean_vector = np.array([0.485, 0.456, 0.406])
-    std_vector = np.array([0.229, 0.224, 0.225])
-    normTransform = transforms.Normalize(mean_vector, std_vector)
-    dataset_transforms = transforms.Compose([transforms.ToPILImage(),
-                                             transforms.Resize(240),
-                                             transforms.ToTensor(),
-                                             normTransform])
-
-    # read information from the yaml file
-    nbr = 0
-    epochs = cfg['training']['nbr_epochs']
-    batch_size = cfg['training']['batch_size']
-    distance_threshold = cfg['training']['distance_threshold']
-
-    train_dataset = TrainingDataset(path= opt['path_images_training'], size=(cfg['training']['image_size_h'],
-                                                                             cfg['training']['image_size_w']),
-                                    cfg=cfg, mask=False)
-
-    val_dataset = TrainingDataset(path= opt['path_images_testing'], size=(cfg['testing']['image_size_h'],
-                                                                          cfg['testing']['image_size_w']),
-                                  cfg=cfg, mask=False)
-
+    train_dataset = SyntheticDataset(cfg=cfg, train=True)
+    val_dataset = SyntheticDataset(cfg=cfg, train=False)
     train_dataloader = DataLoader(train_dataset,
-                                  batch_size=batch_size,
+                                  batch_size=cfg['training']['batch_size'],
                                   shuffle=True,
                                   num_workers=args.n_threads)
 
@@ -85,7 +63,7 @@ def training_no_test_set(cfg, compute_metrics):
                                 num_workers=args.n_threads)
 
     model = UNet()
-    # attention, expect inputs to have channel first ! 
+    # attention, expect inputs to have channel first !
 
     # Optimizer
     optimizer = \
@@ -94,12 +72,6 @@ def training_no_test_set(cfg, compute_metrics):
                    weight_decay=0) #torch with weight decay is equivelent to tensorflow tfa.optimizers.AdamW
     # we used tf.train.AdamOptimizer, which does not have weight decay. however, i dont know what is eauivelent to
     # the regularisation function in layers of tensorflow
-
-
-    # Scheduler
-    scheduler = lr_scheduler.MultiStepLR(optimizer,
-                                         milestones=[2, 15, 30, 45, 60],
-                                         gamma=0.1)
 
     if args.pretrained:
         if os.path.isfile(args.pretrained):
@@ -113,35 +85,28 @@ def training_no_test_set(cfg, compute_metrics):
 
         # reload from pre_trained_model
         print('path to pretrained model is {}'.format(path_to_pretrained_model))
-        model, optimizer, scheduler, start_epoch, best_val = load_checkpoint(model, optimizer, scheduler,
-                                                                             filename=path_to_pretrained_model)
+        model, optimizer, start_epoch, best_val = load_checkpoint(model, optimizer, filename=path_to_pretrained_model)
         # now individually transfer the optimizer parts...
         for state in optimizer.state.values():
             for k, v in state.items():
                 if isinstance(v, torch.Tensor):
                     state[k] = v.to(device)
-        cur_snapshot = os.path.basename(os.path.dirname(args.pretrained))
+        base_name = os.path.basename(os.path.dirname(args.pretrained))
+        save_path = os.path.join(cfg['write_dir'], base_name)
 
     else:
-        if not os.path.isdir(args.snapshots):
-            os.mkdir(args.snapshots)
+        save_path = os.path.join(cfg['write_dir'], cfg['name_exp'])
+        # creates the directory to save the images and checkpoints
+        if not osp.isdir(save_path):
+            os.mkdir(save_path)
 
-        cur_snapshot = time.strftime('%Y_%m_%d_%H_%M')
-
-        if not osp.isdir(osp.join(args.snapshots, cur_snapshot)):
-            os.mkdir(osp.join(args.snapshots, cur_snapshot))
-
-        with open(osp.join(args.snapshots, cur_snapshot, 'args.pkl'), 'wb') as f:
+        with open(osp.join(save_path, 'args.pkl'), 'wb') as f:
             pickle.dump(args, f)
 
         best_val = -1
         start_epoch = 0
-        train_losses = []
 
     # create summary writer
-    save_path = os.path.join(cfg['write_dir'], cfg['name_exp'])
-    # creates the directory to save the images and checkpoints
-    os.makedirs(save_path, exist_ok=True)
     shutil.copy2(os.path.basename(__file__), save_path)
     train_writer = SummaryWriter(os.path.join(save_path, 'train'))
     val_writer = SummaryWriter(os.path.join(save_path, 'val'))
@@ -150,8 +115,7 @@ def training_no_test_set(cfg, compute_metrics):
     model = model.to(device)
 
     # Criterions
-    for epoch in range(start_epoch, epochs):
-        scheduler.step()
+    for epoch in range(start_epoch, cfg['training']['nbr_epochs']):
         print('starting epoch {}: info scheduler last_epoch is {}, learning rate is {}'.format(epoch,
                                                                                                scheduler.last_epoch,
                                                                                                scheduler.get_lr()))
@@ -169,7 +133,6 @@ def training_no_test_set(cfg, compute_metrics):
                                  device,
                                  epoch,
                                  nms,
-                                 distance_threshold=distance_threshold,
                                  compute_metrics=compute_metrics,
                                  save_path=os.path.join(save_path, 'train'))
         train_writer.add_scalar('train loss', train_loss, epoch)
@@ -178,7 +141,7 @@ def training_no_test_set(cfg, compute_metrics):
 
 
         # TESTING
-        if cfg['testing']['testing'] and epoch % cfg["testing"]["testing_every"] == 0:
+        if cfg['validation']['validation'] and epoch % cfg["validation"]["validation_every"] == 0:
             # Validation
             val_loss = validate_epoch(model,
                                       optimizer,
@@ -188,7 +151,6 @@ def training_no_test_set(cfg, compute_metrics):
                                       device,
                                       epoch,
                                       nms,
-                                      distance_threshold=distance_threshold,
                                       compute_metrics=compute_metrics,
                                       save_path=os.path.join(save_path, 'val'))
 
@@ -207,7 +169,6 @@ def training_no_test_set(cfg, compute_metrics):
         save_checkpoint({'epoch': epoch + 1,
                          'state_dict': model.module.state_dict(),
                          'optimizer': optimizer.state_dict(),
-                         'scheduler': scheduler.state_dict(),
                          'best_loss': best_val},
                         is_best, save_path, 'epoch_{}.pth'.format(epoch + 1))
 
