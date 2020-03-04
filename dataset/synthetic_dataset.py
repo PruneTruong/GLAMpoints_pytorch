@@ -65,7 +65,7 @@ class SyntheticDataset(Dataset):
         self.training = train
         if train:
             self.root_dir = os.path.join(cfg['training']['TRAIN_DIR'])
-            if cfg['training']['train_list'] is not None:
+            if cfg['training']['train_list'] != ' ':
                 self.list_original_images = []
                 self.list_original_images = open(cfg['training']['train_list']).read().splitlines()
             else:
@@ -73,8 +73,8 @@ class SyntheticDataset(Dataset):
                                              f.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif', '.ppm'))]
         else:
             # we are evaluating
-            self.root_dir = os.path.join(cfg['training']['VAL_DIR'])
-            if cfg['validation']['val_list'] is not None:
+            self.root_dir = os.path.join(cfg['validation']['VAL_DIR'])
+            if cfg['validation']['val_list'] != ' ':
                 self.list_original_images = []
                 self.list_original_images = open(cfg['validation']['val_list']).read().splitlines()
             else:
@@ -101,13 +101,15 @@ class SyntheticDataset(Dataset):
                                 (self.cfg['validation']['image_size_h'], self.cfg['validation']['image_size_w']))
 
         # apply correct preprocessing
-        if self.cfg['use_green_channel']:
+        if self.cfg['augmentation']['use_green_channel']:
             image = image[:, :, 1]
         else:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
+        '''
         if self.mask:
             mask = (image < 230) & (image > 25)
+        '''
 
         # sample homography and creates image1
         h1 = homography_sampling(image.shape, self.cfg['sample_homography'], seed=self.seed * (idx + 1))
@@ -126,10 +128,12 @@ class SyntheticDataset(Dataset):
 
         output = {'image1': torch.Tensor(image1.astype(np.int32)).unsqueeze(0), # put the images (gray) so that batch will be Bx1xHxW
                   'image2': torch.Tensor(image2.astype(np.int32)).unsqueeze(0),
-                  'image1_preprocessed': torch.Tensor(image1_preprocessed.astype(np.float32)).unsqueeze(0),
-                  'image2_preprocessed': torch.Tensor(image2_preprocessed.astype(np.float32)).unsqueeze(0),
+                  'image1_normed': torch.Tensor(image1_preprocessed.astype(np.float32)).unsqueeze(0),
+                  'image2_normed': torch.Tensor(image2_preprocessed.astype(np.float32)).unsqueeze(0),
                   'H1_to_2': torch.Tensor(H.astype(np.float32))}
 
+        '''
         if mask:
             output['mask'] = torch.Tensor(mask.astype(np.uint8))
+        '''
         return output

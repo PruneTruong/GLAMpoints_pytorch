@@ -1,30 +1,33 @@
 ---
 #saving path
 name_exp: 'experiment'
-write_dir: '/path/to/results/folder'
+write_dir: '/home/big_kat/Desktop/glampoint_test/'
 
 #hyperparameters
 training:
-    TRAIN_DIR: '/path/to/training/images/'
+    TRAIN_DIR: '/home/big_kat/Desktop/glampoint_test/train'
+    train_list: ' '
     image_size_h: 256
     image_size_w: 256
     load_pre_training: False
     learning_rate: 0.001
-    nbr_epochs: 200
-    NMS_epoch0: 10
+    nbr_epochs: 40
+    NMS_epoch0: 5
     NMS_others: 10
     batch_size: 5
     seed: 30
     distance_threshold: 5
     plot_every_x_batches: 10
+    n_threads: 8
 validation:
-    VAL_DIR: '/path/to/testing/images/'
+    VAL_DIR: '/home/big_kat/Desktop/glampoint_test/val'
+    val_list: ' '
     validation: True
     validation_every: 1
     image_size_h: 256
     image_size_w: 256
     NMS: 10
-    batch_size: 5
+    batch_size: 4
 
 
 #augmentation 
@@ -48,8 +51,8 @@ augmentation:
     motion_blur:
         max_ksize: 15
     gamma_correction:
-        min_gamma: 0.5
-        max_gamma: 1.5
+        min_gamma: 0.8
+        max_gamma: 1.2
 
 sample_homography:
     scaling:

@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-from utils_training.loss import compute_reward, loss
+from utils_training.loss import compute_reward, compute_loss
 from tqdm import tqdm
 import torch
 from utils_training.utils_CNN import plot_training
@@ -59,35 +59,35 @@ def train_epoch(net,
             computed_reward1, mask_batch1, metrics_per_image, mean_rep, ratio_correct_homo, ratio_acceptable_homo = \
             compute_reward(image1, image2, kp_map1.clone().detach(), kp_map2.clone().detach(),
                            homographies, nms,
-                           distance_threshold=cfg['training']['distance_threshold'],
+                           distance_threshold=cfg['training']['distance_threshold'], device=device,
                            compute_metrics=compute_metrics)
             train_writer.add_scalar('mean_repeatability_per_iter', mean_rep, n_iter)
             train_writer.add_scalar('ratio_correct_homographies_per_iter', ratio_correct_homo, n_iter)
             train_writer.add_scalar('ratio_acceptable_homographies_per_iter', ratio_acceptable_homo, n_iter)
-
-        computed_reward1, mask_batch1 = compute_reward(image1, image2, kp_map1.clone().detach(), kp_map2.clone().detach(),
-                                                                          homographies, nms,
-                                                                          distance_threshold=distance_threshold,
-                                                                          compute_metrics=compute_metrics)
+        else:
+            computed_reward1, mask_batch1 = compute_reward(image1, image2, kp_map1.clone().detach(), kp_map2.clone().detach(),
+                                                           homographies, nms,
+                                                           distance_threshold=cfg['training']['distance_threshold'],
+                                                           device=device, compute_metrics=compute_metrics)
 
         # loss calculation
-        Loss = loss(reward=computed_reward1, kpmap=kp_map1, mask=mask_batch1)
+        Loss = compute_loss(reward=computed_reward1, kpmap=kp_map1, mask=mask_batch1)
         Loss.backward()
         optimizer.step()
 
         if i % cfg["training"]["plot_every_x_batches"] == 0 and compute_metrics:
             plot_training(image1.cpu().numpy().squeeze(), image2.cpu().numpy().squeeze(),
-                          kp_map1.cpu().numpy().squeeze(), kp_map2.cpu().numpy().squeeze(),
-                          computed_reward1.cpu().numpy().squeeze(), Loss.cpu().numpy().squeeze(),
+                          kp_map1.detach().cpu().numpy().squeeze(), kp_map2.detach().cpu().numpy().squeeze(),
+                          computed_reward1.cpu().numpy().squeeze(), Loss.item(),
                           mask_batch1.cpu().numpy().squeeze(), metrics_per_image, epoch, save_path,
                           name_to_save='epoch{}_batch{}.jpg'.format(epoch, i))
 
-        running_total_loss += Loss.sum().item()
-        train_writer.add_scalar('train_loss_per_iter', Loss.sum().item(), n_iter)
+        running_total_loss += Loss.item()
+        train_writer.add_scalar('train_loss_per_iter', Loss.item(), n_iter)
         n_iter += 1
         pbar.set_description(
                 'training: R_total_loss: %.3f/%.3f' % (running_total_loss / (i + 1),
-                                             Loss.sum().item()))
+                                             Loss.item()))
     running_total_loss /= len(train_loader)
     return running_total_loss
 
@@ -144,35 +144,38 @@ def validate_epoch(net,
                     compute_reward(image1, image2, kp_map1.clone().detach(), kp_map2.clone().detach(),
                                    homographies, nms,
                                    distance_threshold=cfg['training']['distance_threshold'],
+                                   device=device,
                                    compute_metrics=compute_metrics)
                 rep_per_epoch.append(mean_rep)
                 ratio_acceptable_homo_per_epoch.append(ratio_acceptable_homo)
                 ratio_correct_homo_per_epoch.append(ratio_correct_homo)
-
-            computed_reward1, mask_batch1 = compute_reward(image1, image2, kp_map1.clone(), kp_map2.clone(),
-                                                           homographies, nms,
-                                                           distance_threshold=distance_threshold,
-                                                           compute_metrics=compute_metrics)
+            else:
+                computed_reward1, mask_batch1 = compute_reward(image1, image2, kp_map1.clone(), kp_map2.clone(),
+                                                               homographies, nms,
+                                                               distance_threshold=cfg['training']['distance_threshold'],
+                                                               device=device,
+                                                               compute_metrics=compute_metrics)
 
             # loss calculation
-            Loss = loss(reward=computed_reward1, kpmap=kp_map1, mask=mask_batch1)
+            Loss = compute_loss(reward=computed_reward1, kpmap=kp_map1, mask=mask_batch1)
 
             if i < 2 and compute_metrics:
                 plot_training(image1.cpu().numpy().squeeze(), image2.cpu().numpy().squeeze(),
-                              kp_map1.cpu().numpy().squeeze(), kp_map2.cpu().numpy().squeeze(),
-                              computed_reward1.cpu().numpy().squeeze(), Loss.cpu().numpy().squeeze(),
+                              kp_map1.detach().cpu().numpy().squeeze(), kp_map2.detach().cpu().numpy().squeeze(),
+                              computed_reward1.cpu().numpy().squeeze(), Loss.item(),
                               mask_batch1.cpu().numpy().squeeze(), metrics_per_image, epoch, save_path,
                               name_to_save='epoch{}_batch{}.jpg'.format(epoch, i))
 
-            running_total_loss += Loss.sum().item()
-            val_writer.add_scalar('val_loss_per_iter', Loss.sum().item(), n_iter)
+            running_total_loss += Loss.item()
+            val_writer.add_scalar('val_loss_per_iter', Loss.item(), n_iter)
             n_iter += 1
             pbar.set_description(
                 'validation: R_total_loss: %.3f/%.3f' % (running_total_loss / (i + 1),
-                                                       Loss.sum().item()))
+                                                       Loss.item()))
         running_total_loss /= len(val_loader)
-        val_writer.add_scalar('mean_repeatability_per_epoch', mean_rep, epoch)
-        val_writer.add_scalar('ratio_correct_homographies_per_epoch', ratio_correct_homo, epoch)
-        val_writer.add_scalar('ratio_acceptable_homographies_per_epoch', ratio_acceptable_homo, epoch)
+        if compute_metrics:
+            val_writer.add_scalar('mean_repeatability_per_epoch', mean_rep, epoch)
+            val_writer.add_scalar('ratio_correct_homographies_per_epoch', ratio_correct_homo, epoch)
+            val_writer.add_scalar('ratio_acceptable_homographies_per_epoch', ratio_acceptable_homo, epoch)
 
     return running_total_loss / len(val_loader)

@@ -56,22 +56,22 @@ def load_checkpoint(model, optimizer, scheduler, filename='checkpoint.pth.tar'):
 
 
 def plot_training(image1, image2, kp_map1, kp_map2, computed_reward1, loss, mask_batch1, metrics_per_image,
-                  nbr, epoch, save_path, name_to_save):
+                  epoch, save_path, name_to_save):
 
     fig, ((axis1, axis2), (axis3, axis4), (axis5, axis6), (axis7, axis8), (axis9, axis10)) = \
         plt.subplots(5, 2, figsize=(20, 20))
-    nbr=0
+    nbr=1
     size_image = image1[nbr, :, :].shape
     plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.0002, hspace=0.4)
     # plot pair of images, red kp are tp points
     axis1.imshow(image1[nbr, :, :], cmap='gray', vmin=0, vmax=255)
     axis1.scatter(metrics_per_image['{}'.format(nbr)]['to_plot']['tp_kp1'][1],
-                  metrics_per_image['{}'.format(nbr)]['to_plot']['tp_kp1'][0], s=1, color='red')
+                  metrics_per_image['{}'.format(nbr)]['to_plot']['tp_kp1'][0], s=2, color='red')
     axis1.set_title('epoch{}, img1:original_image'.format(epoch), fontsize='small')
 
     im = axis2.imshow(image2[nbr, :, :], cmap='gray', vmin=0, vmax=255)
     axis2.scatter(metrics_per_image['{}'.format(nbr)]['to_plot']['warped_tp_kp1'][1],
-                  metrics_per_image['{}'.format(nbr)]['to_plot']['warped_tp_kp1'][0], s=1,
+                  metrics_per_image['{}'.format(nbr)]['to_plot']['warped_tp_kp1'][0], s=2,
                   color='red')
     axis2.set_title('img2:warped_image', fontsize='small')
     fig.colorbar(im, ax=axis2)
@@ -88,20 +88,20 @@ def plot_training(image1, image2, kp_map1, kp_map2, computed_reward1, loss, mask
     # scatter the points afte NMS and in red the tp points
     axis5.imshow(np.zeros(size_image), cmap='gray', origin='upper', vmin=0.0, vmax=1.0)
     axis5.scatter(metrics_per_image['{}'.format(nbr)]['to_plot']['keypoints_map1'][1],
-                  metrics_per_image['{}'.format(nbr)]['to_plot']['keypoints_map1'][0], s=1,
+                  metrics_per_image['{}'.format(nbr)]['to_plot']['keypoints_map1'][0], s=2,
                   color='white')
     axis5.scatter(metrics_per_image['{}'.format(nbr)]['to_plot']['tp_kp1'][1],
-                  metrics_per_image['{}'.format(nbr)]['to_plot']['tp_kp1'][0], s=1, color='red')
+                  metrics_per_image['{}'.format(nbr)]['to_plot']['tp_kp1'][0], s=2, color='red')
     axis5.set_title('kp_map after NMS of image1, nbr_kp {}, nbr tp keypoints found {}'.format(
         metrics_per_image['{}'.format(nbr)]['nbr_kp1'],
         metrics_per_image['{}'.format(nbr)]['total_nbr_kp_reward1']), fontsize='medium')
 
     im6 = axis6.imshow(np.zeros(size_image), cmap='gray', origin='upper', vmin=0.0, vmax=1.0)
     axis6.scatter(metrics_per_image['{}'.format(nbr)]['to_plot']['keypoints_map2'][1],
-                  metrics_per_image['{}'.format(nbr)]['to_plot']['keypoints_map2'][0], s=1,
+                  metrics_per_image['{}'.format(nbr)]['to_plot']['keypoints_map2'][0], s=2,
                   color='white')
-    axis5.scatter(metrics_per_image['{}'.format(nbr)]['to_plot']['warped_tp_kp1'][1],
-                  metrics_per_image['{}'.format(nbr)]['to_plot']['warped_tp_kp1'][0], s=1,
+    axis6.scatter(metrics_per_image['{}'.format(nbr)]['to_plot']['warped_tp_kp1'][1],
+                  metrics_per_image['{}'.format(nbr)]['to_plot']['warped_tp_kp1'][0], s=2,
                   color='red')
     axis6.set_title('kp_map after NMS of image2, nbr_kp {}'.format(
         metrics_per_image['{}'.format(nbr)]['nbr_kp2']), fontsize='small')
@@ -113,12 +113,14 @@ def plot_training(image1, image2, kp_map1, kp_map2, computed_reward1, loss, mask
         metrics_per_image['{}'.format(nbr)]['repeatability'],
         metrics_per_image['{}'.format(nbr)]['total_nbr_kp_reward1']), fontsize='small')
 
+    '''
     im8 = axis8.imshow(loss[nbr, :, :], cmap='gray', interpolation='nearest')
     axis8.set_title('summed loss {},  max {},\n min {}, mean_part={}'. \
                     format(round(np.sum(loss[nbr]), 2), round(np.max(loss[nbr]), 5),
                            round(np.min(loss[nbr]), 2), round(np.mean(loss[nbr]), 5)),
                     fontsize='medium')
     fig.colorbar(im8, ax=axis8)
+    '''
 
     # plot the mask and the transformed image according to estimated homography
     axis9.imshow(mask_batch1[nbr, :, :], vmin=0, vmax=1)

@@ -5,10 +5,9 @@ from skimage.feature import peak_local_max
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes, bilinear=False):
+    def __init__(self, bilinear=False):
         super(UNet, self).__init__()
-        self.n_channels = n_channels
-        self.n_classes = n_classes
+        n_channels = 1
         self.bilinear = bilinear
 
         self.conv1 = DoubleConv(n_channels, 8)

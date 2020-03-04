@@ -27,14 +27,12 @@ import shutil
 import argparse
 import yaml
 from termcolor import colored
-from dataset.training_dataset import SyntheticDataset
+from dataset.synthetic_dataset import SyntheticDataset
 from models.Unet_model import UNet
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-import torchvision.transforms as transforms
-import torch.optim.lr_scheduler as lr_scheduler
 from utils_training.optimize import train_epoch, validate_epoch
 from utils_training.utils_CNN import load_checkpoint, save_checkpoint
 from tensorboardX import SummaryWriter
@@ -43,10 +41,10 @@ from tensorboardX import SummaryWriter
 def training_no_test_set(cfg, compute_metrics):
 
     args = parser.parse_args()
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    torch.cuda.manual_seed(args.seed)
+    random.seed(cfg['training']['seed'])
+    np.random.seed(cfg['training']['seed'])
+    torch.manual_seed(cfg['training']['seed'])
+    torch.cuda.manual_seed(cfg['training']['seed'])
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -55,12 +53,12 @@ def training_no_test_set(cfg, compute_metrics):
     train_dataloader = DataLoader(train_dataset,
                                   batch_size=cfg['training']['batch_size'],
                                   shuffle=True,
-                                  num_workers=args.n_threads)
+                                  num_workers=cfg['training']['n_threads'])
 
     val_dataloader = DataLoader(val_dataset,
-                                batch_size=20,
+                                batch_size=cfg['validation']['batch_size'],
                                 shuffle=False,
-                                num_workers=args.n_threads)
+                                num_workers=cfg['training']['n_threads'])
 
     model = UNet()
     # attention, expect inputs to have channel first !
@@ -73,7 +71,7 @@ def training_no_test_set(cfg, compute_metrics):
     # we used tf.train.AdamOptimizer, which does not have weight decay. however, i dont know what is eauivelent to
     # the regularisation function in layers of tensorflow
 
-    if args.pretrained:
+    if cfg['training']['load_pre_training']:
         if os.path.isfile(args.pretrained):
             # it is pointing directly to the pre trained model file
             path_to_pretrained_model = args.pretrained
@@ -116,9 +114,7 @@ def training_no_test_set(cfg, compute_metrics):
 
     # Criterions
     for epoch in range(start_epoch, cfg['training']['nbr_epochs']):
-        print('starting epoch {}: info scheduler last_epoch is {}, learning rate is {}'.format(epoch,
-                                                                                               scheduler.last_epoch,
-                                                                                               scheduler.get_lr()))
+        print('starting epoch {}'.format(epoch))
         if epoch == 0:
             nms = cfg['training']['NMS_epoch0']
         else:
@@ -136,7 +132,6 @@ def training_no_test_set(cfg, compute_metrics):
                                  compute_metrics=compute_metrics,
                                  save_path=os.path.join(save_path, 'train'))
         train_writer.add_scalar('train loss', train_loss, epoch)
-        train_writer.add_scalar('learning_rate', scheduler.get_lr()[0], epoch)
         print(colored('==> ', 'green') + 'Train average loss:', train_loss)
 
 
@@ -178,7 +173,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Training the detector')
     parser.add_argument('--path_ymlfile', type=str,
                         help='Path to yaml file.')
-    parser.add_argument('--compute_metrics', type=bool, default=False,
+    parser.add_argument('--compute_metrics', type=bool, default=True,
                         help='Plot during training? (default: False).')
 
     opt = parser.parse_args()
