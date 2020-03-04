@@ -15,7 +15,7 @@ class UNet(nn.Module):
         self.conv3 = Down(16, 32)
         self.conv4 = Down(32, 64)
         self.conv5 = Down(64, 128) # conv5 has 128 channels after 2 conv
-        self.up1 = Up(128, 64, bilinear)
+        self.up1 = Up(128, 64, bilinear) # Up is upscaling (and reducing channel to 64) then concat and double conv
         self.up2 = Up(64, 32, bilinear)
         self.up3 = Up(32, 16, bilinear)
         self.up4 = Up(16, 8, bilinear)
@@ -41,17 +41,3 @@ class UNet(nn.Module):
         output = self.last_conv(x)
         output_sigmoid = self.sigmoid(output)
         return output_sigmoid
-
-
-def non_max_suppression(image, size_filter, proba):
-    non_max = peak_local_max(image, min_distance=size_filter, threshold_abs=proba, \
-                      exclude_border=True, indices=False)
-    kp = np.where(non_max>0)
-    if len(kp[0]) != 0:
-        for i in range(len(kp[0]) ):
-
-            window=non_max[kp[0][i]-size_filter:kp[0][i]+(size_filter+1), \
-                           kp[1][i]-size_filter:kp[1][i]+(size_filter+1)]
-            if np.sum(window)>1:
-                window[:,:]=0
-    return non_max

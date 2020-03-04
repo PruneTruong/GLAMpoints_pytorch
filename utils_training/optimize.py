@@ -40,6 +40,23 @@ def train_epoch(net,
     net.train()
     running_total_loss = 0
 
+    if compute_metrics:
+        nbr_images = 0.0
+        nbr_homo_correct = 0.0
+        nbr_homo_accept = 0.0
+        nbr_tp = 0.0
+        nbr_kp = 0.0
+        add_repeatability = 0.0
+
+        '''
+        # puts them to zero at the beginning of the epoch
+        train_writer.add_scalar('cumulative_ratio_correct_homographies_per_iter', nbr_homo_correct, n_iter)
+        train_writer.add_scalar('cumulative_ratio_acceptable_homographies_per_iter', nbr_homo_accept, n_iter)
+        train_writer.add_scalar('cumulative_average_number_of_kp_per_iter', nbr_kp, n_iter)
+        train_writer.add_scalar('cumulative_average_number_of_tp_per_iter', nbr_tp, n_iter)
+        train_writer.add_scalar('cumulative_repeatability_per_iter', add_repeatability, n_iter)
+        '''
+
     pbar = tqdm(enumerate(train_loader), total=len(train_loader))
     for i, mini_batch in pbar:
         # all the images are dimneison Bx1xHxW
@@ -56,14 +73,27 @@ def train_epoch(net,
 
         # backpropagation will not go through this
         if compute_metrics:
-            computed_reward1, mask_batch1, metrics_per_image, mean_rep, ratio_correct_homo, ratio_acceptable_homo = \
-            compute_reward(image1, image2, kp_map1.clone().detach(), kp_map2.clone().detach(),
-                           homographies, nms,
-                           distance_threshold=cfg['training']['distance_threshold'], device=device,
-                           compute_metrics=compute_metrics)
-            train_writer.add_scalar('mean_repeatability_per_iter', mean_rep, n_iter)
-            train_writer.add_scalar('ratio_correct_homographies_per_iter', ratio_correct_homo, n_iter)
-            train_writer.add_scalar('ratio_acceptable_homographies_per_iter', ratio_acceptable_homo, n_iter)
+            computed_reward1, mask_batch1, metrics_per_image = compute_reward(image1, image2, kp_map1.clone().detach(),
+                                                                              kp_map2.clone().detach(),
+                                                                              homographies, nms,
+                                                                              distance_threshold=cfg['training']['distance_threshold'],
+                                                                              device=device,
+                                                                              compute_metrics=compute_metrics)
+
+            nbr_images += metrics_per_image['nbr_images']
+            nbr_homo_correct += metrics_per_image['nbr_homo_correct']
+            nbr_homo_accept += metrics_per_image['nbr_homo_acceptable']
+            nbr_tp += metrics_per_image['nbr_tp']
+            nbr_kp += metrics_per_image['nbr_kp']
+            add_repeatability += metrics_per_image['sum_rep']
+
+            train_writer.add_scalar('cumulative_ratio_correct_homographies_per_iter', float(nbr_homo_correct) / nbr_images,
+                                  n_iter)
+            train_writer.add_scalar('cumulative_ratio_acceptable_homographies_per_iter', float(nbr_homo_accept) / nbr_images,
+                                  n_iter)
+            train_writer.add_scalar('cumulative_average_number_of_kp_per_iter', float(nbr_kp) / nbr_images, n_iter)
+            train_writer.add_scalar('cumulative_average_number_of_tp_per_iter', float(nbr_tp) / nbr_images, n_iter)
+            train_writer.add_scalar('cumulative_repeatability_per_iter', float(add_repeatability) / nbr_images, n_iter)
         else:
             computed_reward1, mask_batch1 = compute_reward(image1, image2, kp_map1.clone().detach(), kp_map2.clone().detach(),
                                                            homographies, nms,
@@ -122,9 +152,23 @@ def validate_epoch(net,
     net.eval()
 
     running_total_loss = 0
-    rep_per_epoch = []
-    ratio_correct_homo_per_epoch = []
-    ratio_acceptable_homo_per_epoch = []
+
+    if compute_metrics:
+        nbr_images = 0.0
+        nbr_homo_correct = 0.0
+        nbr_homo_accept = 0.0
+        nbr_tp = 0.0
+        nbr_kp = 0.0
+        add_repeatability = 0.0
+
+        '''
+        # puts them to zero at the beginning of the epoch
+        val_writer.add_scalar('cumulative_ratio_correct_homographies_per_iter', nbr_homo_correct, n_iter)
+        val_writer.add_scalar('cumulative_ratio_acceptable_homographies_per_iter', nbr_homo_accept, n_iter)
+        val_writer.add_scalar('cumulative_average_number_of_kp_per_iter', nbr_kp, n_iter)
+        val_writer.add_scalar('cumulative_average_number_of_tp_per_iter', nbr_tp, n_iter)
+        val_writer.add_scalar('cumulative_repeatability_per_iter', add_repeatability, n_iter)
+        '''
 
     with torch.no_grad():
         pbar = tqdm(enumerate(val_loader), total=len(val_loader))
@@ -140,15 +184,27 @@ def validate_epoch(net,
 
             # backpropagation will not go through this
             if compute_metrics:
-                computed_reward1, mask_batch1, metrics_per_image, mean_rep, ratio_correct_homo, ratio_acceptable_homo = \
-                    compute_reward(image1, image2, kp_map1.clone().detach(), kp_map2.clone().detach(),
-                                   homographies, nms,
-                                   distance_threshold=cfg['training']['distance_threshold'],
-                                   device=device,
-                                   compute_metrics=compute_metrics)
-                rep_per_epoch.append(mean_rep)
-                ratio_acceptable_homo_per_epoch.append(ratio_acceptable_homo)
-                ratio_correct_homo_per_epoch.append(ratio_correct_homo)
+                computed_reward1, mask_batch1, metrics_per_image = compute_reward(image1, image2,
+                                                                                   kp_map1.clone().detach(),
+                                                                                   kp_map2.clone().detach(),
+                                                                                   homographies, nms,
+                                                                                   distance_threshold=cfg['training']['distance_threshold'],
+                                                                                   device=device,
+                                                                                   compute_metrics=compute_metrics)
+
+                nbr_images += metrics_per_image['nbr_images']
+                nbr_homo_correct += metrics_per_image['nbr_homo_correct']
+                nbr_homo_accept += metrics_per_image['nbr_homo_acceptable']
+                nbr_tp += metrics_per_image['nbr_tp']
+                nbr_kp += metrics_per_image['nbr_kp']
+                add_repeatability += metrics_per_image['sum_rep']
+
+                val_writer.add_scalar('cumulative_ratio_correct_homographies_per_iter', float(nbr_homo_correct)/nbr_images, n_iter)
+                val_writer.add_scalar('cumulative_ratio_acceptable_homographies_per_iter', float(nbr_homo_accept)/nbr_images, n_iter)
+                val_writer.add_scalar('cumulative_average_number_of_kp_per_iter', float(nbr_kp)/nbr_images, n_iter)
+                val_writer.add_scalar('cumulative_average_number_of_tp_per_iter', float(nbr_tp)/nbr_images, n_iter)
+                val_writer.add_scalar('cumulative_repeatability_per_iter', float(add_repeatability)/nbr_images, n_iter)
+
             else:
                 computed_reward1, mask_batch1 = compute_reward(image1, image2, kp_map1.clone(), kp_map2.clone(),
                                                                homographies, nms,
@@ -174,8 +230,12 @@ def validate_epoch(net,
                                                        Loss.item()))
         running_total_loss /= len(val_loader)
         if compute_metrics:
-            val_writer.add_scalar('mean_repeatability_per_epoch', mean_rep, epoch)
-            val_writer.add_scalar('ratio_correct_homographies_per_epoch', ratio_correct_homo, epoch)
-            val_writer.add_scalar('ratio_acceptable_homographies_per_epoch', ratio_acceptable_homo, epoch)
+            val_writer.add_scalar('ratio_correct_homographies_per_epoch',
+                                  float(nbr_homo_correct) / nbr_images, epoch)
+            val_writer.add_scalar('ratio_acceptable_homographies_per_epoch',
+                                  float(nbr_homo_accept) / nbr_images, epoch)
+            val_writer.add_scalar('average_number_of_kp_per_epoch', float(nbr_kp) / nbr_images, epoch)
+            val_writer.add_scalar('average_number_of_tp_per_epoch', float(nbr_tp) / nbr_images, epoch)
+            val_writer.add_scalar('repeatability_per_epoch', float(add_repeatability) / nbr_images, epoch)
 
     return running_total_loss / len(val_loader)

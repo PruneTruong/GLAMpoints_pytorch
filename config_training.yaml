@@ -1,6 +1,6 @@
 ---
 #saving path
-name_exp: 'experiment'
+name_exp: 'experiment_2'
 write_dir: '/home/big_kat/Desktop/glampoint_test/'
 
 #hyperparameters

@@ -35,12 +35,15 @@ def compute_reward(image1, image2, kp_map1, kp_map2, homographies, nms, distance
     rep_glampoints = []
     homo_glampoints = []
     acceptable_homo_glampoints = []
+    kp_glampoints = []
+    tp_glampoints = []
     metrics_per_image = {}
 
     SIFT = cv2.xfeatures2d.SIFT_create()
 
     # computes the reward and mask for each element of the batch
     for i in range(kp_map1.shape[0]):
+        shape = kp_map1[i, :, :].shape
         # for storing information
         plot = {}
         metrics = {}
@@ -91,19 +94,20 @@ def compute_reward(image1, image2, kp_map1, kp_map2, homographies, nms, distance
 
         if compute_metrics:
             # compute metrics as an indication and plot the different steps
+
             # metrics about estimated homography
             computed_H, ratio_inliers = compute_homography(kp1, kp2, des1, des2, 'SIFT', 0.80)
             tf_accepted = homography_is_accepted(computed_H)
-            RMSE, MEE, MAE = compute_registration_error(homography, computed_H, kp_map1[i, :, :].shape)
+            RMSE, MEE, MAE = compute_registration_error(homography, computed_H, shape)
             found_homography, acceptable_homography = class_homography(MEE, MAE)
             metrics['computed_H'] = computed_H
             metrics['homography_correct'] = tf_accepted
             metrics['inlier_ratio'] = ratio_inliers
             metrics['class_acceptable'] = acceptable_homography
 
-            # repeatability
+            # computes and stores repeatability
             if (kp1.shape[0] != 0) and (kp2.shape[0] != 0):
-                repeatability = get_repeatability(kp1, kp2, homography, kp_map1[i, :, :].shape)
+                repeatability = get_repeatability(kp1, kp2, homography, shape)
             else:
                 repeatability = 0
             metrics['repeatability'] = repeatability
@@ -137,6 +141,8 @@ def compute_reward(image1, image2, kp_map1, kp_map2, homographies, nms, distance
             rep_glampoints.append(repeatability)
             homo_glampoints.append(tf_accepted)
             acceptable_homo_glampoints.append(acceptable_homography)
+            kp_glampoints.append(metrics['nbr_kp1'])
+            tp_glampoints.append(metrics['total_nbr_kp_reward1'])
 
     # from numpy array, reconvert to torch Tensor, put them in cuda and the right dimention Bx1xHxW
     reward_batch1 = torch.from_numpy(reward_batch1).unsqueeze(1).to(device)
@@ -144,10 +150,13 @@ def compute_reward(image1, image2, kp_map1, kp_map2, homographies, nms, distance
     del SIFT
 
     if compute_metrics:
-        return reward_batch1, mask_batch1, metrics_per_image, np.mean(rep_glampoints), \
-               float(np.sum(homo_glampoints))/float(len(homo_glampoints)) if len(homo_glampoints) != 0 else 0.0, \
-               float(np.sum(acceptable_homo_glampoints))/float(len(acceptable_homo_glampoints)) if \
-                   len(acceptable_homo_glampoints) != 0 else 0.0
+        metrics_per_image['sum_rep'] = np.sum(rep_glampoints)
+        metrics_per_image['nbr_homo_correct'] = np.sum(homo_glampoints)
+        metrics_per_image['nbr_homo_acceptable'] = np.sum(acceptable_homography)
+        metrics_per_image['nbr_kp'] = np.sum(kp_glampoints)
+        metrics_per_image['nbr_tp'] = np.sum(tp_glampoints)
+        metrics_per_image['nbr_images'] = len(tp_glampoints)
+        return reward_batch1, mask_batch1, metrics_per_image
     else:
         return reward_batch1, mask_batch1
 
