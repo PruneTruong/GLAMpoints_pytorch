@@ -5,6 +5,35 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def double_conv(in_channels, out_channels):
+    return nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels, eps=1e-03, momentum=0.01), # to be similar to Tensorflow that has 0.99 (1-0.01)
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels, eps=1e-03, momentum=0.01), # to be similar to Tensorflow https://github.com/pytorch/examples/issues/289
+            nn.ReLU(inplace=True))
+
+
+def down():
+    """Downscaling with maxpool"""
+    return nn.MaxPool2d(2)
+
+
+def up(in_channels, out_channels, bilinear=False):
+    """Upscaling. must put sequential here to correspond to tensorflow model  """
+
+    if bilinear:
+        return nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True))
+    else:
+        return nn.Sequential(
+            nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2))
+
+
+# with classes
+# https://github.com/milesial/Pytorch-UNet/blob/master/unet/unet_parts.py modified
+
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""
 
@@ -12,10 +41,10 @@ class DoubleConv(nn.Module):
         super().__init__()
         self.double_conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels, eps=1e-03, momentum=0.01), # to be similar to Tensorflow that has 0.99 (1-0.01)
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels, eps=1e-03, momentum=0.01), # to be similar to Tensorflow https://github.com/pytorch/examples/issues/289
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True)
         )
 

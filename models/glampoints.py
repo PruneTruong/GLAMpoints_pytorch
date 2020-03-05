@@ -30,16 +30,16 @@ def sift(image, kp_before):
     return kp, des
 
 
-class GLAMpoints:
-    def __init__(self, **kwargs):
+class GLAMpointsInference:
+    def __init__(self, path_weights, nms, min_prob):
 
-        self.nms = int(kwargs['NMS'])
-        self.min_prob = float(kwargs['min_prob'])
+        self.nms = nms
+        self.min_prob = min_prob
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         net = UNet()
         # load the pretrained weights to the network
-        self.path_weights = str(kwargs['path_GLAMpoints_weights'])
+        self.path_weights = path_weights
         if not osp.isfile(self.path_weights):
             raise ValueError('check the snapshots path, checkpoint is {}'.format(self.path_weights))
         try:
@@ -52,6 +52,9 @@ class GLAMpoints:
         self.net = net.to(self.device)
 
     def pre_process_data(self, image):
+
+        # TODO: check it is numpy
+        # otherwise if it is torch, check the size
         if len(image.shape) != 2:
             image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         image_norm = np.float32(image) / float(np.max(image))

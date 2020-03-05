@@ -13,7 +13,7 @@ import argparse
 import imageio
 import os
 import torch
-from models.glampoints import GLAMpoints, SIFT_noorientation
+from models.glampoints import GLAMpointsInference, SIFT_noorientation
 
 
 def horizontal_combine_images(img1, img2):
@@ -97,7 +97,7 @@ def draw_matches(img1, img2, kp1, kp2, matches):
 
 if __name__ == '__main__':
     
-    parser = argparse.ArgumentParser(description='Computing matches and registration using GLAMpoints')
+    parser = argparse.ArgumentParser(description='Computing matches and registration using GLAMpointsInference')
     parser.add_argument('--path_image1', type=str, default='path_to_image1',
     help='Path to the first image.')
     parser.add_argument('--path_image2', type=str, default='path_to_image1',
@@ -134,7 +134,8 @@ if __name__ == '__main__':
 
     with torch.no_grad():
         # evaluation mode, no need to calculate gradients.
-        glampoints = GLAMpoints(**kwarg)
+        glampoints = GLAMpointsInference(path_weights=str(kwarg['path_GLAMpoints_weights']), nms=int(kwarg['NMS']),
+                                         min_prob=float(kwarg['min_prob']))
 
         # gets kp and descriptor from both images using glampoint
         kp1, des1 = glampoints.find_and_describe_keypoints(image1_gray)
