@@ -123,7 +123,6 @@ def train_epoch(net,
 
 
 def validate_epoch(net,
-                optimizer,
                 val_loader,
                 val_writer,
                 cfg,
@@ -185,8 +184,8 @@ def validate_epoch(net,
             # backpropagation will not go through this
             if compute_metrics:
                 computed_reward1, mask_batch1, metrics_per_image = compute_reward(image1, image2,
-                                                                                   kp_map1.clone().detach(),
-                                                                                   kp_map2.clone().detach(),
+                                                                                   kp_map1.clone(),
+                                                                                   kp_map2.clone(),
                                                                                    homographies, nms,
                                                                                    distance_threshold=cfg['training']['distance_threshold'],
                                                                                    device=device,
@@ -217,7 +216,7 @@ def validate_epoch(net,
 
             if i < 2 and compute_metrics:
                 plot_training(image1.cpu().numpy().squeeze(), image2.cpu().numpy().squeeze(),
-                              kp_map1.detach().cpu().numpy().squeeze(), kp_map2.detach().cpu().numpy().squeeze(),
+                              kp_map1.cpu().numpy().squeeze(), kp_map2.cpu().numpy().squeeze(),
                               computed_reward1.cpu().numpy().squeeze(), Loss.item(),
                               mask_batch1.cpu().numpy().squeeze(), metrics_per_image, epoch, save_path,
                               name_to_save='epoch{}_batch{}.jpg'.format(epoch, i))
