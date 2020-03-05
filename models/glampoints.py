@@ -35,25 +35,25 @@ class GLAMpoints:
 
         self.nms = int(kwargs['NMS'])
         self.min_prob = float(kwargs['min_prob'])
-        self.net = UNet()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+        net = UNet()
         # load the pretrained weights to the network
         self.path_weights = str(kwargs['path_GLAMpoints_weights'])
         if not osp.isfile(self.path_weights):
             raise ValueError('check the snapshots path, checkpoint is {}'.format(self.path_weights))
         try:
-            self.net.load_state_dict(torch.load(self.path_weights))
+            net.load_state_dict(torch.load(self.path_weights))
         except:
-            self.net.load_state_dict(torch.load(self.path_weights)['state_dict'])
+            net.load_state_dict(torch.load(self.path_weights)['state_dict'])
         print('successfully loaded weights to the network !')
 
-        self.net.eval()
-        self.net.to(self.device)
+        net.eval()
+        self.net = net.to(self.device)
 
     def pre_process_data(self, image):
         if len(image.shape) != 2:
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         image_norm = np.float32(image) / float(np.max(image))
 
         # creates a Torch input tensor of dimension 1x1xHxW
@@ -62,10 +62,10 @@ class GLAMpoints:
 
     def find_and_describe_keypoints(self, image):
         image_preprocessed = self.pre_process_data(image)
-        kp_map = self.net(image_preprocessed)
+        kp_map = self.net(image_preprocessed).to(self.device)
         # output is of shape 1x1xHxW
 
-        kp_map_nonmax = non_max_suppression(kp_map.cpu().numpy().squeeze(), self.nms, self.min_prob)
+        kp_map_nonmax = non_max_suppression(kp_map.data.cpu().numpy().squeeze(), self.nms, self.min_prob)
 
         keypoints_map = np.where(kp_map_nonmax > 0)
         kp_array = np.array([keypoints_map[1], keypoints_map[0]]).T

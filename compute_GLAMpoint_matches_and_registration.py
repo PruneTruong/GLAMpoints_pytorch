@@ -12,6 +12,7 @@ import cv2
 import argparse
 import imageio
 import os
+import torch
 from models.glampoints import GLAMpoints, SIFT_noorientation
 
 
@@ -103,8 +104,8 @@ if __name__ == '__main__':
     help='Path to the second image.')
     parser.add_argument('--write_dir', type=str, default='path_to_result_dir',
     help='Directory where to write output figure.')
-    parser.add_argument('--path_GLAMpoints_weights', type=str, default='weights/model-34',
-    help='Path to pretrained weights file of GLAMpoint model (default: weights/model-34).')
+    parser.add_argument('--path_GLAMpoints_weights', type=str, default='weights/Unet4_retina_images_converted_tf_weights.pth',
+    help='Path to pretrained weights file of GLAMpoint model (default: weights/Unet4_retina_images_converted_tf_weights.pth).')
     parser.add_argument('--SIFT', type=bool, default=True,
     help='Compute matches and registration with SIFT detector as a comparison? (default:True)')
     parser.add_argument('--NMS', type=int, default=15,
@@ -128,54 +129,27 @@ if __name__ == '__main__':
         image1_gray = image1[:,:,1]
         image2_gray = image2[:,:,1]
     else:
-        image1_gray = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
-        image2_gray = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+        image1_gray = cv2.cvtColor(image1, cv2.COLOR_RGB2GRAY)
+        image2_gray = cv2.cvtColor(image2, cv2.COLOR_RGB2GRAY)
 
-    glampoints = GLAMpoints(**kwarg)
+    with torch.no_grad():
+        # evaluation mode, no need to calculate gradients.
+        glampoints = GLAMpoints(**kwarg)
 
-    # gets kp and descriptor from both images using glampoint
-    kp1, des1 = glampoints.find_and_describe_keypoints(image1_gray)
-    kp2, des2 = glampoints.find_and_describe_keypoints(image2_gray)
-    im1 = np.uint8(draw_keypoints(cv2.cvtColor(image1, cv2.COLOR_RGB2BGR), kp1))
-    im2 = np.uint8(draw_keypoints(cv2.cvtColor(image2, cv2.COLOR_RGB2BGR), kp2))
+        # gets kp and descriptor from both images using glampoint
+        kp1, des1 = glampoints.find_and_describe_keypoints(image1_gray)
+        kp2, des2 = glampoints.find_and_describe_keypoints(image2_gray)
+        im1 = np.uint8(draw_keypoints(cv2.cvtColor(image1, cv2.COLOR_RGB2BGR), kp1))
+        im2 = np.uint8(draw_keypoints(cv2.cvtColor(image2, cv2.COLOR_RGB2BGR), kp2))
 
-    # compute matches and homography
-    homography, inlier_ratio, matches = compute_homography(kp1, kp2, des1, des2, method='GLAMpoint', ratio_threshold=0.8)
+        # compute matches and homography
+        homography, inlier_ratio, matches = compute_homography(kp1, kp2, des1, des2, method='GLAMpoint', ratio_threshold=0.8)
 
-    fig, ((axis1, axis2, axis3), (axis4, axis5, axis6))=plt.subplots(2,3, figsize=(30,30))
-    axis1.imshow(im1)
-    axis1.set_title('detected kp on image 1, NMS={}'.format(opt.NMS))
-    axis2.imshow(im2)
-    axis2.set_title('detected kp on image 2, NMS={}'.format(opt.NMS))
-    if matches is not None:
-        img_matches = draw_matches(im1, im2, kp1, kp2, matches)
-        axis3.imshow(img_matches)
-        axis3.set_title('matches found')
-    axis4.imshow(image1)
-    axis4.set_title('image 1')
-    axis5.imshow(image2)
-    axis5.set_title('image 2')
-    axis6.imshow(cv2.warpPerspective(image1, homography, (image1.shape[1], image1.shape[0])))
-    axis6.set_title('image 1 transformed after \n estimating homography with RANSAC')
-    fig.savefig(os.path.join(opt.write_dir, 'registration_GLAMpoints_NMS_{}_minprob_{}.png'.\
-                format(opt.NMS, opt.min_prob)))
-    plt.close(fig)
-
-    if opt.SIFT:
-        # compare to SIFT by extracting SIFT kp and descriptors
-        sift = SIFT_noorientation(**kwarg_SIFT) # here for fair comparison, SIFT does not have orientation
-        # can also be SIFT with orientation sift=SIFT(**kwarg_SIFT)
-        kp1, des1=sift.find_and_describe_keypoints(image1_gray)
-        kp2, des2=sift.find_and_describe_keypoints(image2_gray)
-        im1=np.uint8(draw_keypoints(cv2.cvtColor(image1, cv2.COLOR_RGB2BGR), kp1))
-        im2=np.uint8(draw_keypoints(cv2.cvtColor(image2, cv2.COLOR_RGB2BGR), kp2))
-
-        homography, inlier_ratio, matches=compute_homography(kp1, kp2, des1, des2, 'RetiNet', 0.8)
         fig, ((axis1, axis2, axis3), (axis4, axis5, axis6))=plt.subplots(2,3, figsize=(30,30))
         axis1.imshow(im1)
-        axis1.set_title('detected kp on image 1')
+        axis1.set_title('detected kp on image 1, NMS={}'.format(opt.NMS))
         axis2.imshow(im2)
-        axis2.set_title('detected kp on image 2')
+        axis2.set_title('detected kp on image 2, NMS={}'.format(opt.NMS))
         if matches is not None:
             img_matches = draw_matches(im1, im2, kp1, kp2, matches)
             axis3.imshow(img_matches)
@@ -186,5 +160,34 @@ if __name__ == '__main__':
         axis5.set_title('image 2')
         axis6.imshow(cv2.warpPerspective(image1, homography, (image1.shape[1], image1.shape[0])))
         axis6.set_title('image 1 transformed after \n estimating homography with RANSAC')
-        fig.savefig(os.path.join(opt.write_dir, 'registration_SIFT.png'))
+        fig.savefig(os.path.join(opt.write_dir, 'registration_GLAMpoints_NMS_{}_minprob_{}.png'.\
+                    format(opt.NMS, opt.min_prob)))
         plt.close(fig)
+
+        if opt.SIFT:
+            # compare to SIFT by extracting SIFT kp and descriptors
+            sift = SIFT_noorientation(**kwarg_SIFT) # here for fair comparison, SIFT does not have orientation
+            # can also be SIFT with orientation sift=SIFT(**kwarg_SIFT)
+            kp1, des1=sift.find_and_describe_keypoints(image1_gray)
+            kp2, des2=sift.find_and_describe_keypoints(image2_gray)
+            im1=np.uint8(draw_keypoints(cv2.cvtColor(image1, cv2.COLOR_RGB2BGR), kp1))
+            im2=np.uint8(draw_keypoints(cv2.cvtColor(image2, cv2.COLOR_RGB2BGR), kp2))
+
+            homography, inlier_ratio, matches=compute_homography(kp1, kp2, des1, des2, 'RetiNet', 0.8)
+            fig, ((axis1, axis2, axis3), (axis4, axis5, axis6))=plt.subplots(2,3, figsize=(30,30))
+            axis1.imshow(im1)
+            axis1.set_title('detected kp on image 1')
+            axis2.imshow(im2)
+            axis2.set_title('detected kp on image 2')
+            if matches is not None:
+                img_matches = draw_matches(im1, im2, kp1, kp2, matches)
+                axis3.imshow(img_matches)
+                axis3.set_title('matches found')
+            axis4.imshow(image1)
+            axis4.set_title('image 1')
+            axis5.imshow(image2)
+            axis5.set_title('image 2')
+            axis6.imshow(cv2.warpPerspective(image1, homography, (image1.shape[1], image1.shape[0])))
+            axis6.set_title('image 1 transformed after \n estimating homography with RANSAC')
+            fig.savefig(os.path.join(opt.write_dir, 'registration_SIFT.png'))
+            plt.close(fig)
