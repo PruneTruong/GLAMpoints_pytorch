@@ -67,6 +67,8 @@ class SyntheticDataset(Dataset):
             self.root_dir = os.path.join(cfg['training']['TRAIN_DIR'])
             if cfg['training']['train_list'] != ' ':
                 self.list_original_images = []
+                if not os.path.isfile(cfg['training']['train_list']):
+                    raise ValueError('The path to train_list you indicated does not exist !')
                 self.list_original_images = open(cfg['training']['train_list']).read().splitlines()
             else:
                 self.list_original_images = [f for f in os.listdir(self.root_dir) if
@@ -75,12 +77,13 @@ class SyntheticDataset(Dataset):
             # we are evaluating
             self.root_dir = os.path.join(cfg['validation']['VAL_DIR'])
             if cfg['validation']['val_list'] != ' ':
+                if not os.path.isfile(cfg['validation']['validation_list']):
+                    raise ValueError('The path to validation_list you indicated does not exist !')
                 self.list_original_images = []
                 self.list_original_images = open(cfg['validation']['val_list']).read().splitlines()
             else:
                 self.list_original_images = [f for f in os.listdir(self.root_dir) if
                                              f.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif', '.ppm'))]
-        #self.mask = mask
 
     def __len__(self):
         return len(self.list_original_images)
@@ -131,12 +134,7 @@ class SyntheticDataset(Dataset):
                       'image1_normed': torch.Tensor(image1_preprocessed.astype(np.float32)).unsqueeze(0),
                       'image2_normed': torch.Tensor(image2_preprocessed.astype(np.float32)).unsqueeze(0),
                       'H1_to_2': torch.Tensor(H.astype(np.float32))}
-
-            '''
-            if mask:
-                output['mask'] = torch.Tensor(mask.astype(np.uint8))
-            '''
-
         except:
             output = self.__getitem__(np.random.randint(0, idx - 1))
+
         return output

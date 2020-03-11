@@ -21,7 +21,6 @@
 import pickle
 import numpy as np
 import os.path as osp
-import tensorflow as tf
 import os
 import random
 import shutil
@@ -42,7 +41,7 @@ parser = argparse.ArgumentParser(description='Training the detector')
 parser.add_argument('--path_ymlfile', type=str,
                     help='Path to yaml file.')
 parser.add_argument('--compute_metrics', type=bool, default=True,
-                    help='Plot during training? (default: False).')
+                    help='Compute metrics and plot during training? (default: True).')
 
 args = parser.parse_args()
 
@@ -85,14 +84,9 @@ the regularisation function in layers of tensorflow
 '''
 
 if cfg['training']['load_pre_training']:
-    if os.path.isfile(args.pretrained):
-        # it is pointing directly to the pre trained model file
-        path_to_pretrained_model = args.pretrained
-    else:
-        # it is only a directory, need to find the proper file now
-        epochfiles = [f for f in os.listdir(args.pretrained) if f.startswith('epoch_')]
-        epoch_sorted = sorted(epochfiles, key=lambda x: int(x.split("_")[1].split(".")[0]))
-        path_to_pretrained_model = os.path.join(args.pretrained, epoch_sorted[-1])
+    path_to_pretrained_model = cfg['training']['pre_trained_weights']
+    if not os.path.isfile(cfg['training']['pre_trained_weights']):
+        raise ValueError('The path to the model pre-trained weights you indicated does not exist !')
 
     # reload from pre_trained_model
     print('path to pretrained model is {}'.format(path_to_pretrained_model))
@@ -102,8 +96,7 @@ if cfg['training']['load_pre_training']:
         for k, v in state.items():
             if isinstance(v, torch.Tensor):
                 state[k] = v.to(device)
-    base_name = os.path.basename(os.path.dirname(args.pretrained))
-    save_path = os.path.join(cfg['write_dir'], base_name)
+    save_path = os.path.join(cfg['write_dir'], cfg['name_exp'])
 
 else:
     save_path = os.path.join(cfg['write_dir'], cfg['name_exp'])

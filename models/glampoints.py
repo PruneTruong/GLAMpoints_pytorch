@@ -53,15 +53,64 @@ class GLAMpointsInference:
 
     def pre_process_data(self, image):
 
-        # TODO: check it is numpy
-        # otherwise if it is torch, check the size
-        if len(image.shape) != 2:
-            image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        image_norm = np.float32(image) / float(np.max(image))
+        if torch.is_tensor(image):
+            # if it is already a Torch Tensor
+            if len(image.shape) == 2:
+                # gray image
+                image_norm = image.float() / float(image.max())
+                image_norm = image_norm.unsqueeze(0).unsqueeze(0).float().to(self.device)
+            if len(image.shape) == 3:
+                # BxHxW, HxWx3 or 3xHxW
+                if image.shape[0] == 3:
+                    # 3xHxW
+                    image_numpy = image.permute(1,2,0).cpu().numpy() # now HxWx3
+                    image = cv2.cvtColor(image_numpy, cv2.COLOR_RGB2GRAY)
+                    image_norm = np.float32(image) / float(np.max(image))
+                    # creates a Torch input tensor of dimension 1x1xHxW
+                    image_norm = torch.from_numpy(image_norm).unsqueeze(0).unsqueeze(0).float().to(self.device)
+                elif image.shape[2] == 3:
+                    # HxWx3
+                    image_numpy = image.cpu().numpy()
+                    image = cv2.cvtColor(image_numpy, cv2.COLOR_RGB2GRAY)
+                    image_norm = np.float32(image) / float(np.max(image))
+                    # creates a Torch input tensor of dimension 1x1xHxW
+                    image_norm = torch.from_numpy(image_norm).unsqueeze(0).unsqueeze(0).float().to(self.device)
+                else:
+                    # BxHxW, already gray scale
+                    image_norm = image.float() / float(image.max())
+                    image_norm = image_norm.unsqueeze(1).float().to(self.device)
+            if len(image.shape) == 4:
+                # Bx1xHxW or BxHxWx1 or Bx3xHxW or BxHxWx3
+                if image.shape[1] == 1:
+                    # already good Bx1xHxW
+                    image_norm = image.float() / float(image.max())
+                elif image.shape[3] == 1:
+                    # BxHxWx1
+                    image_norm = image.permute(0,3,1,2).float() / float(image.max())
+                else:
+                    if image.shape[1] == 3:
+                        # Bx3xHxW
+                        image = image.permute(0, 2, 3, 1)
+                    # now tensor BxHxWx3
+                    B,H,W,_ = image.shape
+                    image_gray = torch.Tensor((), dtype=torch.float32)
+                    image_gray.new_zeros((B,H,W))
+                    for i in image.shape[0]:
+                        image_numpy_i = image[i].cpu().numpy()
+                        image_i = cv2.cvtColor(image_numpy_i, cv2.COLOR_RGB2GRAY)
+                        image_norm_i = np.float32(image_i) / float(np.max(image))
+                        image_gray[i] = image_norm_i
 
-        # creates a Torch input tensor of dimension 1x1xHxW
-        image_norm = torch.from_numpy(image_norm).unsqueeze(0).unsqueeze(0).float().to(self.device)
-        return image_norm
+                    image_norm = image_gray.unsqueeze(1).float().to(self.device)
+
+        elif isinstance(image, type(np.empty(0))):
+            if len(image.shape) != 2:
+                image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            image_norm = np.float32(image) / float(np.max(image))
+
+            # creates a Torch input tensor of dimension 1x1xHxW
+            image_norm = torch.from_numpy(image_norm).unsqueeze(0).unsqueeze(0).float().to(self.device)
+        return image_norm.float().to(self.device)
 
     def find_and_describe_keypoints(self, image):
         image_preprocessed = self.pre_process_data(image)
