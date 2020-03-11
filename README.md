@@ -16,7 +16,7 @@ pip install -r requirements.txt
 
 **Goal of the method**: It enables the training of a domain-specific keypoint detector over non-differentiable registration methods. This code exemplifies the presented method using root SIFT, a homography model and RANSAC optimization.
 
-![alt text](https://github.com/PruneTruong/GLAMpoints_pytorch/blob/dev/images/summary_GLAMpoints.png)
+![alt text](https://github.com/PruneTruong/GLAMpoints_pytorch/blob/master/images/summary_GLAMpoints.png)
 
 
 == Preprocessing ==
@@ -29,11 +29,14 @@ pip install -r requirements.txt
 
 
 == Data selection ==
+
+At each iteration: 
 - select original image 
-- compute transformation g and g'
+- compute random geometric transformations g and g' (the maximum degree of the transformations can be chosen by the user depending on its test set)
 - transform original image with g and g' to create respectively I and I'
-- compute relation between images  I->I': g' * g^-1
-- augment: gaussian noise, changes of contrast, illumination, gamma, motion blur and the inverse of image
+- compute relation between images  I->I': H = g' * g^-1
+- apply a subset of appearance changes: gaussian noise, changes of contrast, illumination, gamma, motion blur and the inverse of image
+Again, the maximum degree of the appearance changes can be chosen by the user. 
 
 == Training ==
 
@@ -59,7 +62,20 @@ the absolute path to  a file listing the names of the reference images to use in
 Those images must be within the root directory `training, TRAIN_DIR` indicated. 
 
 The same set-up must be performed for the validation set. 
-Adapt the hyperparameters in `training` to your dataset. 
+
+
+One can adapt the hyperparameters in `training` to your dataset. 
+
+
+
+**Note on the synthetic image pair creation:** At each epoch, random geometric transformations are applied to the original 
+images so as to synthetically create the pairs of training images. One can adapt the degree of those geometric transformations 
+by changing the parameters in `sample_homography` of the training_config. 
+  Similarly, which appearance changes are applied to the training images as well as their strength can be adapted in`augmentation`. 
+  **The degree of the geometric transformations should be chosen so that the resulting synthetic training set resembles the test set.**
+In our case, our test set composed of retinal images only showed rotation up to 30 degrees and only little scaling changes, therefore we limited
+the geometric transformations of the training set accordingly. 
+However, **any degree of geometric transformation** or even non-linear ones can be applied to the original images to synthetically create pairs of training images. 
 
 
 If you want to start the training from pre-trained model weights, put `training,load_pre_training` equal to True and indicate the 
