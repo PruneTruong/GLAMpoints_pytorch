@@ -2,7 +2,7 @@ import torch
 import cv2
 from utils_training.metrics_comparison import get_repeatability, compute_homography, homography_is_accepted, \
     class_homography, compute_registration_error
-from models.Unet_model import non_max_suppression
+from models.glampoints import non_max_suppression
 from utils_training.utils_CNN import warp_kp, find_true_positive_matches, sift
 import numpy as np
 import random

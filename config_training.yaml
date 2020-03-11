@@ -1,6 +1,6 @@
 ---
 #saving path
-name_exp: 'experiment_2'
+name_exp: 'experiment_3'
 write_dir: '/home/big_kat/Desktop/glampoint_test/'
 
 #hyperparameters
@@ -12,7 +12,7 @@ training:
     image_size_h: 256
     image_size_w: 256
     learning_rate: 0.001
-    nbr_epochs: 40
+    nbr_epochs: 5
     NMS_epoch0: 5
     NMS_others: 10
     batch_size: 5

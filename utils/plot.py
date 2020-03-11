@@ -59,7 +59,7 @@ def draw_keypoints(img, kp):
     image_copy=np.copy(img)
     nbr_points=kp.shape[0]
     for i in range(nbr_points):
-        image=cv2.circle(image_copy, (np.int32(kp[i,0]),np.int32(kp[i,1])), 5, (0,255,0),thickness=2)
+        image=cv2.circle(image_copy, (np.int32(kp[i,0]),np.int32(kp[i,1])), 3, (0,255,0),thickness=2)
     return image
 
 

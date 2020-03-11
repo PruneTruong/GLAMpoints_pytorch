@@ -38,7 +38,7 @@ from utils_training.utils_CNN import load_checkpoint, save_checkpoint
 from tensorboardX import SummaryWriter
 
 parser = argparse.ArgumentParser(description='Training the detector')
-parser.add_argument('--path_ymlfile', type=str,
+parser.add_argument('--path_ymlfile', type=str, default='config_training.yaml',
                     help='Path to yaml file.')
 parser.add_argument('--compute_metrics', type=bool, default=True,
                     help='Compute metrics and plot during training? (default: True).')

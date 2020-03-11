@@ -27,6 +27,7 @@ import cv2
 import os
 from utils.plot import draw_keypoints
 
+
 def get_kp_glampoints(image_color, glampoints, save_path, name, green_channel=False):
     if green_channel:
         image = image_color[:, :, 1]
@@ -34,7 +35,7 @@ def get_kp_glampoints(image_color, glampoints, save_path, name, green_channel=Fa
         image = cv2.cvtColor(image_color, cv2.COLOR_BGR2GRAY)
     kp, des = glampoints.find_and_describe_keypoints(image)
 
-    image_kp = np.uint8(draw_keypoints(cv2.cvtColor(image_color, cv2.COLOR_RGB2BGR), kp))
+    image_kp = np.uint8(draw_keypoints(cv2.cvtColor(image_color, cv2.COLOR_BGR2RGB), kp))
     cv2.imwrite('{}/{}_glampoints.png'.format(save_path, name), image_kp)
     print('saved {}'.format(name))
     return kp
