@@ -35,7 +35,7 @@ At each iteration:
 - compute random geometric transformations g and g' (the maximum degree of the transformations can be chosen by the user depending on its test set)
 - transform original image with g and g' to create respectively I and I'
 - compute relation between images  I->I': H = g' * g^-1
-- apply a subset of appearance changes: gaussian noise, changes of contrast, illumination, gamma, motion blur and the inverse of image
+- apply a subset of appearance changes: gaussian noise, changes of contrast, illumination, gamma, motion blur and the inverse of image.
 Again, the maximum degree of the appearance changes can be chosen by the user. 
 
 == Training ==
