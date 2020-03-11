@@ -1,7 +1,7 @@
 # GLAMpoints: Greedily Learned Accurate Match points
 
 This is the official pytorch implementation of our paper [ICCV 2019 paper "GLAMPoints: Greedily Learned Accurate Match points"](https://www.retinai.com/glampoints) ([arXiv](https://arxiv.org/pdf/1908.06812.pdf), [supplemental](https://static1.squarespace.com/static/5967a5599de4bb65a7bb9736/t/5d7a6d2b9e03815777188115/1568304461382/Supplementary_Material.pdf)). 
-Please note that the reference implementation, with corresponding results presented in the paper, is in TensorFlow (https://gitlab.com/retinai_sandro/glampoints), therefore the results obtained with this version might be slightly different. 
+Please note that the reference implementation, with corresponding results presented in the paper, is in TensorFlow ([GLAMpoints_tensorflow](https://gitlab.com/retinai_sandro/glampoints)), therefore the results obtained with this version might be slightly different. 
 
 
 ## Settings
@@ -134,3 +134,29 @@ WARRANTIES OF ANY KIND CONCERNING THIS SOFTWARE.
 This license file must be retained with all copies of the software,
 including any modified or derivative versions.
 >>>>>>> 54a9b6b918191207bf7a166226d7d6284548333c
+
+
+## Reference
+
+Should you make use of this work, please cite the paper accordingly:
+
+```bash
+@article{Truong2019GLAMpointsGL,
+  title={GLAMpoints: Greedily Learned Accurate Match Points},
+  author={Prune Truong and Stefanos Apostolopoulos and Agata Mosinska and Samuel Stucky and Carlos Ciller and Sandro De Zanet},
+  journal={2019 IEEE/CVF International Conference on Computer Vision (ICCV)},
+  year={2019},
+  pages={10731-10740}
+}
+```
+
+And this particular implementation: 
+
+```bash
+ @misc{pytorch-GLAMpoints,
+         author = {Prune TRUONG},
+         title = {A Reimplementation of {GLAMpoints} Using {PyTorch}},
+         year = {2020},
+         howpublished = {\url{https://github.com/PruneTruong/GLAMpoints_pytorch}}
+    }
+```
