@@ -117,8 +117,9 @@ if __name__ == '__main__':
     opt = parser.parse_args()
     kwarg=vars(parser.parse_args(args=None, namespace=None))
     kwarg_SIFT={'nfeatures':600, 'contrastThreshold':0.0275, 'edgeThreshold':12.0, 'sigma':1.0}
-    
 
+    if not os.path.isdir(opt.write_dir):
+        os.makedirs(opt.write_dir)
     try:
         image1 = imageio.imread(opt.path_image1)
         image2 = imageio.imread(opt.path_image2)

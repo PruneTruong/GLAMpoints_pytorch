@@ -8,7 +8,9 @@ Please note that the reference implementation, with corresponding results presen
 
 **Goal of the method**: It enables the training of a domain-specific keypoint detector over non-differentiable registration methods. This code exemplifies the presented method using root SIFT, a homography model and RANSAC optimization.
 
-![alt text] 
+![alt text](https://github.com/PruneTruong/GLAMpoints_pytorch/blob/dev/images/summary_GLAMpoints.png)
+
+
 == Preprocessing ==
 
 - Load original data

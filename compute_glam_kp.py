@@ -27,8 +27,8 @@ import cv2
 import os
 from utils.plot import draw_keypoints
 
-def get_kp_glampoints(image_color, glampoints, save_path, name):
-    if kwarg['green_channel']:
+def get_kp_glampoints(image_color, glampoints, save_path, name, green_channel=False):
+    if green_channel:
         image = image_color[:, :, 1]
     else:
         image = cv2.cvtColor(image_color, cv2.COLOR_BGR2GRAY)
@@ -47,9 +47,8 @@ if __name__ == '__main__':
                         help='Directory where to find the images.')
     parser.add_argument('--write_dir', type=str,
                         help='Directory where to write output text containing the metrics')
-    parser.add_argument('--path_glam_weights', type=str, default='weights/model-34',
-                        help='Path to pretrained weights file of GLAMpointsInference model (default: weights/model-34).')
-
+    parser.add_argument('--path_glam_weights', type=str, default='weights/Unet4_retina_images_converted_tf_weights.pth',
+                        help='Path to pretrained weights file of GLAMpointsInference model (default: weights/Unet4_retina_images_converted_tf_weights.pth)')
     parser.add_argument('--NMS', type=int, default=10,
                         help='Value of the NMS window applied on the score map output of GLAMpointsInference (default:10)')
     parser.add_argument('--min_prob', type=float, default=0.0,
@@ -69,7 +68,9 @@ if __name__ == '__main__':
     '''
 
     opt = parser.parse_args()
-    glampoints = GLAMpointsInference(path_weights=opt.path_GLAMpoints_weights, nms=opt.NMS, min_prob=opt.min_prob)
+    if not os.path.isdir(opt.write_dir):
+        os.makedirs(opt.write_dir)
+    glampoints = GLAMpointsInference(path_weights=opt.path_glam_weights, nms=opt.NMS, min_prob=opt.min_prob)
     kp_dict = {}
 
     if os.path.isdir(opt.path_images):
@@ -89,7 +90,8 @@ if __name__ == '__main__':
         except:
             continue
 
-        kp = get_kp_glampoints(image, glampoints, opt.write_dir, '{}_{}'.format(os.path.basename(os.path.normpath(opt.path_images)), i))
+        kp = get_kp_glampoints(image, glampoints, opt.write_dir, '{}_{}'.format(os.path.basename(os.path.normpath(opt.path_images)), i),
+                               green_channel=opt.green_channel)
         kp_dict[i] = kp.tolist()
         with open('{}/kp_image{}.txt'.format(opt.write_dir, i), 'w') as outfile:
             outfile.write('{} {}\n'.format(len(kp), len(kp)))
