@@ -26,13 +26,14 @@ from matplotlib import pyplot as plt
 import torch
 import shutil
 
+
 def save_checkpoint(state, is_best, save_path, filename):
     torch.save(state, os.path.join(save_path,filename))
     if is_best:
         shutil.copyfile(os.path.join(save_path,filename), os.path.join(save_path,'model_best.pth'))
 
 
-def load_checkpoint(model, optimizer, scheduler, filename='checkpoint.pth.tar'):
+def load_checkpoint(model, optimizer, filename='checkpoint.pth.tar'):
     # Note: Input model & optimizer should be pre-defined.  This routine only updates their states.
     start_epoch = 0
     best_val=-1

@@ -1,5 +1,3 @@
-import numpy as np
-import cv2
 from utils_training.loss import compute_reward, compute_loss
 from tqdm import tqdm
 import torch

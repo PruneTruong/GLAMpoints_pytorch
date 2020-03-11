@@ -8,11 +8,11 @@ training:
     TRAIN_DIR: '/home/big_kat/Desktop/glampoint_test/train'
     train_list: ' '
     load_pre_training: False
-    pre_trained_weights: '/path_to/pretrained_weights.pth'
+    pre_trained_weights: '/path/to/pre_trained_weights.pth'
     image_size_h: 256
     image_size_w: 256
     learning_rate: 0.001
-    nbr_epochs: 5
+    nbr_epochs: 14
     NMS_epoch0: 5
     NMS_others: 10
     batch_size: 5

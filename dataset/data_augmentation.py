@@ -5,7 +5,6 @@
 import cv2 as cv
 import numpy as np
 import math
-import tensorflow as tf
 from scipy.ndimage.filters import gaussian_filter
 import random
 from numpy.linalg import inv
@@ -440,7 +439,7 @@ def motion_blur(img, keypoints, max_ksize=10):
     img = cv.filter2D(img.astype(np.uint8), -1, kernel)
     return img, keypoints
 
-    
+'''
 def disjoint_augment_image_pair(img1, img2, min_val=0, max_val=255):
     # Randomly shift gamma
     random_gamma = tf.random_uniform([], 0.8, 1.2)
@@ -496,3 +495,4 @@ def joint_augment_image_pair(img1, img2, min_val=0, max_val=255):
     img2_aug  = tf.clip_by_value(img2_aug, min_val, max_val)
 
     return img1_aug, img2_aug
+'''
