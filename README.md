@@ -8,9 +8,10 @@ Please note that the reference implementation, with corresponding results presen
 
 **Goal of the method**: It enables the training of a domain-specific keypoint detector over non-differentiable registration methods. This code exemplifies the presented method using root SIFT, a homography model and RANSAC optimization.
 
+![alt text] 
 == Preprocessing ==
 
-- Load data
+- Load original data
 - Crop and pad samples to 256x256
 
 == Model ==
@@ -18,9 +19,9 @@ Please note that the reference implementation, with corresponding results presen
 
 
 == Data selection ==
-- select image I and I'
+- select original image 
 - compute transformation g and g'
-- transform image I and I' with g and g' respectively
+- transform original image with g and g' to create respectively I and I'
 - compute relation between images  I->I': g' * g^-1
 - augment: gaussian noise, changes of contrast, illumination, gamma, motion blur and the inverse of image
 
