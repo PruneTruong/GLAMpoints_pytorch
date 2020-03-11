@@ -69,15 +69,15 @@ if __name__ == '__main__':
     '''
 
     opt = parser.parse_args()
-    kwarg = vars(parser.parse_args(args=None, namespace=None))
-    glampoints = GLAMpointsInference(path_weights=str(kwarg['path_GLAMpoints_weights']), nms=int(kwarg['NMS']),
-                                     min_prob=float(kwarg['min_prob']))
+    glampoints = GLAMpointsInference(path_weights=opt.path_GLAMpoints_weights, nms=opt.NMS, min_prob=opt.min_prob)
     kp_dict = {}
 
     if os.path.isdir(opt.path_images):
-        path_to_images=[os.path.join(opt.path_images, f) for f in sorted(os.listdir(opt.path_images))]
+        path_to_images = [os.path.join(opt.path_images, f) for f in sorted(os.listdir(opt.path_images)) if
+                                     f.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif', '.ppm'))]
     else:
-        path_to_images=[]
+        # it is just the path to a single image
+        path_to_images = []
         path_to_images.append(opt.path_images)
 
     for i, path_file in enumerate(path_to_images):
@@ -89,10 +89,9 @@ if __name__ == '__main__':
         except:
             continue
 
-        kp = get_kp_glampoints(image, glampoints, opt.write_dir,
-                         '{}_{}'.format(os.path.basename(os.path.normpath(opt.path_images)), i))
+        kp = get_kp_glampoints(image, glampoints, opt.write_dir, '{}_{}'.format(os.path.basename(os.path.normpath(opt.path_images)), i))
         kp_dict[i] = kp.tolist()
-        with open('{}/kp_image{}.txt'.format(kwarg['write_dir'], i), 'w') as outfile:
+        with open('{}/kp_image{}.txt'.format(opt.write_dir, i), 'w') as outfile:
             outfile.write('{} {}\n'.format(len(kp), len(kp)))
             for m in range(len(kp)):
                 outfile.write('{} {}\n'.format(kp[m, 0], kp[m, 1]))

@@ -104,7 +104,7 @@ if __name__ == '__main__':
     help='Path to the second image.')
     parser.add_argument('--write_dir', type=str, default='path_to_result_dir',
     help='Directory where to write output figure.')
-    parser.add_argument('--path_GLAMpoints_weights', type=str, default='weights/Unet4_retina_images_converted_tf_weights.pth',
+    parser.add_argument('--path_glam_weights', type=str, default='weights/Unet4_retina_images_converted_tf_weights.pth',
     help='Path to pretrained weights file of GLAMpoint model (default: weights/Unet4_retina_images_converted_tf_weights.pth).')
     parser.add_argument('--SIFT', type=bool, default=True,
     help='Compute matches and registration with SIFT detector as a comparison? (default:True)')
@@ -134,7 +134,7 @@ if __name__ == '__main__':
 
     with torch.no_grad():
         # evaluation mode, no need to calculate gradients.
-        glampoints = GLAMpointsInference(path_weights=str(kwarg['path_GLAMpoints_weights']), nms=int(kwarg['NMS']),
+        glampoints = GLAMpointsInference(path_weights=str(kwarg['path_glam_weights']), nms=int(kwarg['NMS']),
                                          min_prob=float(kwarg['min_prob']))
 
         # gets kp and descriptor from both images using glampoint

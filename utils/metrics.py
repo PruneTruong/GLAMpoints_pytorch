@@ -13,7 +13,7 @@ from utils.metrics_descriptor import keep_shared_keypoints
 import tqdm
 
 
-def compute_metrics_results(img1, img2, method, data, real_H, index_1, kwarg): 
+def compute_metrics_results(img1, img2, method, data, real_H, kwarg):
     '''
     extracts both detector and descriptor metrics for a pair of images img1 and img2, 
     img1 being the reference image, for a particular detector/descriptor named in 'method'.
@@ -23,8 +23,7 @@ def compute_metrics_results(img1, img2, method, data, real_H, index_1, kwarg):
                 data - dictionnary containing keypoints and descriptors of both images 
                 method - string name of the detector/descriptor evaluated
                 real_H - ground truth homography relating the pair of images
-                index_1 - image number (only used to give information if plot or verbose is True)
-                kwarg - infos given by user
+                kward - info given by user
     outputs:
                 dictionnary with keys:
                     - repeatability - repeatability between kp1 and kp2
@@ -66,7 +65,7 @@ def compute_metrics_results(img1, img2, method, data, real_H, index_1, kwarg):
     
     homography, curve_1_precision, curve_recall, area, curve_tpr, curve_fpr, M_score, \
     RMSE, MEE, found_homography, acceptable_homography, coverage_ratio, inlier_ratio, run_time\
-    =extract_descriptor_metrics(img1, img2, data, method, real_H, index_1,
+    =extract_descriptor_metrics(img1, img2, data, method, real_H,
     distance_threshold=kwarg['distance_threshold'], plot=kwarg['plot'],
     verbose=kwarg['verbose'])
     
@@ -178,7 +177,7 @@ def metrics_registration(MEE, RMSE, homography, acceptable_homography, inlier_ra
     return registration
 
 
-def evaluate(test_dataloader, model, name_method='GLAMpointsInference'):
+def evaluate(test_dataloader, model,  args, name_method='GLAMpointsInference'):
     '''
     Computes the average metrics on all pair of images
     arguments:
@@ -229,8 +228,8 @@ def evaluate(test_dataloader, model, name_method='GLAMpointsInference'):
             # no keypoints are detected
         else:
             # we are working with kp that are visible in the shared region only
-            kp1_shared, des1_shared = keep_shared_keypoints(kp1, des1, real_H, img1.shape, verbose=kwarg['verbose'])
-            kp2_shared, des2_shared = keep_shared_keypoints(kp2, des2, np.linalg.inv(real_H), img1.shape, verbose=kwarg['verbose'])
+            kp1_shared, des1_shared = keep_shared_keypoints(kp1, des1, real_H, img1.shape, verbose=args['verbose'])
+            kp2_shared, des2_shared = keep_shared_keypoints(kp2, des2, np.linalg.inv(real_H), img1.shape, verbose=args['verbose'])
             print('there are {} keypoints in the shared view for {}'.format(kp1_shared.shape[0], name_method))
             print('there are {} keypoints in the shared view for {}'.format(kp2_shared.shape[0], name_method))
             if kp1_shared.shape[0]<3 or kp2_shared.shape[0]<3:
@@ -238,8 +237,7 @@ def evaluate(test_dataloader, model, name_method='GLAMpointsInference'):
             else:
                 keypoints={'kp1':kp1_shared, 'des1':des1_shared,
                            'kp2':kp2_shared, 'des2':des2_shared}
-                metrics_results, run_time = compute_metrics_results(img1, img2, name_method, keypoints, real_H,
-                                                                    index_1, kwarg)
+                metrics_results, run_time = compute_metrics_results(img1, img2, name_method, keypoints, real_H)
         '''metrics_results = {'repeatability', 'curve_1_precision', 'curve_recall', 'homography', 'area', \
                            'curve_tpr', 'curve_fpr', 'M_score', \
                            'RMSE', 'MEE', 'found_homography', 'acceptable_homography', \
