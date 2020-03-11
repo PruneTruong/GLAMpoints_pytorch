@@ -4,6 +4,14 @@ This is the official pytorch implementation of our paper [ICCV 2019 paper "GLAMP
 Please note that the reference implementation, with corresponding results presented in the paper, is in TensorFlow (https://gitlab.com/retinai_sandro/glampoints), therefore the results obtained with this version might be slightly different. 
 
 
+## Settings
+
+Use Python 3.7 and install the requirements with:
+```bash
+pip install -r requirements.txt
+```
+
+
 ## Reminder of the steps of the training
 
 **Goal of the method**: It enables the training of a domain-specific keypoint detector over non-differentiable registration methods. This code exemplifies the presented method using root SIFT, a homography model and RANSAC optimization.
