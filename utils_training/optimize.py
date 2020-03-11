@@ -20,18 +20,15 @@ def train_epoch(net,
         net: model architecture
         optimizer: optimizer to be used for traninig `net`
         train_loader: dataloader
+        train_writer: tensorboardX
+        cfg info given by user
         device: `cpu` or `gpu`
-        criterion_grid: criterion for esimation pixel correspondence (L1Masked)
-        criterion_matchability: criterion for mask optimization
-        loss_grid_weights: weight coefficients for each grid estimates tensor
-            for each level of the feature pyramid
-        L_coeff: weight coefficient to balance `criterion_grid` and
-            `criterion_matchability`
+        epoch
+        nms: non max suppression
+        compute_metrics: bool
+        save_path: path to folder in which to save images
     Output:
         running_total_loss: total training loss
-
-        here outptu at every level is flow inteprolated but not scaled. we only use the groudn truth flow as higest
-        resolution and downsample it without scaling alos
     """
     n_iter = epoch*len(train_loader)
     # everywhere when they say flow it is actuallt mapping
@@ -66,7 +63,7 @@ def train_epoch(net,
 
         optimizer.zero_grad()
 
-        kp_map1 = net(image1_normed)
+        kp_map1 = net(image1_normed) # shape Bx1xHxW
         kp_map2 = net(image2_normed)
 
         # backpropagation will not go through this
@@ -134,15 +131,15 @@ def validate_epoch(net,
     Args:
         net: model architecture
         val_loader: dataloader
+        cal_writer: tensorboardX
+        cfg info given by user
         device: `cpu` or `gpu`
-        criterion_grid: criterion for esimation pixel correspondence (L1Masked)
-        criterion_matchability: criterion for mask optimization
-        loss_grid_weights: weight coefficients for each grid estimates tensor
-            for each level of the feature pyramid
-        L_coeff: weight coefficient to balance `criterion_grid` and
-            `criterion_matchability`
+        epoch
+        nms: non max suppression
+        compute_metrics: bool
+        save_path: path to folder in which to save images
     Output:
-        running_total_loss: total validation loss
+        running_total_loss: total training loss
     """
 
     n_iter = epoch * len(val_loader)

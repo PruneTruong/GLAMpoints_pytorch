@@ -10,16 +10,19 @@ import random
 
 def compute_reward(image1, image2, kp_map1, kp_map2, homographies, nms, distance_threshold, device, compute_metrics=False):
     '''
-
-    :param image1: torch Tensor of size Bx1xHxW
-    :param image2: torch Tensor of size Bx1xHxW
-    :param kp_map1: torch Tensor of size Bx1xHxW
-    :param kp_map2: torch Tensor of size Bx1xHxW
-    :param homographies: torch Tensor of size Bx3x3
-    :param nms:
-    :param distance_threshold:
-    :param compute_metrics:
+    parameters:
+        - image1: torch Tensor of size Bx1xHxW
+        - image2: torch Tensor of size Bx1xHxW
+        - kp_map1: torch Tensor of size Bx1xHxW
+        - kp_map2: torch Tensor of size Bx1xHxW
+        - homographies: torch Tensor of size Bx3x3
+        - nms:
+        - distance_threshold:
+        - compute_metrics:
     :return:
+        - reward_batch1: torch Tensor of size Bx1xHxW
+        - mask_batch1: torch Tensor of size Bx1xHxW
+        - optional metrics_per_image: dict containing the resuls
     '''
 
     # convert torch Tensor into numpy arrays, and put it in BxHxWxC
