@@ -7,7 +7,6 @@ Created on Thu Dec  6 14:42:15 2018
 """
 import numpy as np
 from matplotlib import pyplot as plt
-
 import cv2
 import argparse
 import imageio
@@ -118,6 +117,10 @@ if __name__ == '__main__':
     kwarg=vars(parser.parse_args(args=None, namespace=None))
     kwarg_SIFT={'nfeatures':600, 'contrastThreshold':0.0275, 'edgeThreshold':12.0, 'sigma':1.0}
 
+    torch.cuda.empty_cache()
+    torch.set_grad_enabled(False)  # make sure to not compute gradients for computational performance
+    torch.backends.cudnn.enabled = True
+
     if not os.path.isdir(opt.write_dir):
         os.makedirs(opt.write_dir)
     try:
@@ -138,7 +141,7 @@ if __name__ == '__main__':
         glampoints = GLAMpointsInference(path_weights=str(kwarg['path_glam_weights']), nms=int(kwarg['NMS']),
                                          min_prob=float(kwarg['min_prob']))
 
-        # gets kp and descriptor from both images using glampoint
+        # gets kp and descriptor from both images using glampoint, pre-processing of the images is done within the function
         kp1, des1 = glampoints.find_and_describe_keypoints(image1_gray)
         kp2, des2 = glampoints.find_and_describe_keypoints(image2_gray)
         im1 = np.uint8(draw_keypoints(cv2.cvtColor(image1, cv2.COLOR_RGB2BGR), kp1))

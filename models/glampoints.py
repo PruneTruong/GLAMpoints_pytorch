@@ -52,7 +52,11 @@ class GLAMpointsInference:
         self.net = net.to(self.device)
 
     def pre_process_data(self, image):
-
+        '''
+        pre-process the image by first putting it in the right format 1x1xHxW and by dividing it by max(image)
+        :param image:
+        :return:
+        '''
         if torch.is_tensor(image):
             # if it is already a Torch Tensor
             if len(image.shape) == 2:
@@ -113,6 +117,11 @@ class GLAMpointsInference:
         return image_norm.float().to(self.device)
 
     def find_and_describe_keypoints(self, image):
+        '''
+
+        :param image: image to process by the network
+        :return: detected kp and corresponding SIFT descriptors
+        '''
         image_preprocessed = self.pre_process_data(image)
         kp_map = self.net(image_preprocessed).to(self.device)
         # output is of shape 1x1xHxW

@@ -26,6 +26,7 @@ from models.glampoints import GLAMpointsInference
 import cv2
 import os
 from utils.plot import draw_keypoints
+import torch
 
 
 def get_kp_glampoints(image_color, glampoints, save_path, name, green_channel=False):
@@ -33,7 +34,7 @@ def get_kp_glampoints(image_color, glampoints, save_path, name, green_channel=Fa
         image = image_color[:, :, 1]
     else:
         image = cv2.cvtColor(image_color, cv2.COLOR_BGR2GRAY)
-    kp, des = glampoints.find_and_describe_keypoints(image)
+    kp, des = glampoints.find_and_describe_keypoints(image) # pre-processing of the image is done within the function
 
     image_kp = np.uint8(draw_keypoints(cv2.cvtColor(image_color, cv2.COLOR_BGR2RGB), kp))
     cv2.imwrite('{}/{}_glampoints.png'.format(save_path, name), image_kp)
@@ -67,12 +68,13 @@ if __name__ == '__main__':
     parser.add_argument('--preprocessing_blurring', type=int, default=2,
     help='Size of the bilinear blurring kernel applied on images during preprocessing (default: 2).')
     '''
-
     opt = parser.parse_args()
+    torch.cuda.empty_cache()
+    torch.set_grad_enabled(False)  # make sure to not compute gradients for computational performance
+    torch.backends.cudnn.enabled = True
+
     if not os.path.isdir(opt.write_dir):
         os.makedirs(opt.write_dir)
-    glampoints = GLAMpointsInference(path_weights=opt.path_glam_weights, nms=opt.NMS, min_prob=opt.min_prob)
-    kp_dict = {}
 
     if os.path.isdir(opt.path_images):
         path_to_images = [os.path.join(opt.path_images, f) for f in sorted(os.listdir(opt.path_images)) if
@@ -82,19 +84,22 @@ if __name__ == '__main__':
         path_to_images = []
         path_to_images.append(opt.path_images)
 
-    for i, path_file in enumerate(path_to_images):
-        print(path_file)
-        try:
-            image = cv2.imread(path_file)
-            if image is None:
+    with torch.no_grad():
+        glampoints = GLAMpointsInference(path_weights=opt.path_glam_weights, nms=opt.NMS, min_prob=opt.min_prob)
+        kp_dict = {}
+        for i, path_file in enumerate(path_to_images):
+            print(path_file)
+            try:
+                image = cv2.imread(path_file)
+                if image is None:
+                    continue
+            except:
                 continue
-        except:
-            continue
 
-        kp = get_kp_glampoints(image, glampoints, opt.write_dir, '{}_{}'.format(os.path.basename(os.path.normpath(opt.path_images)), i),
-                               green_channel=opt.green_channel)
-        kp_dict[i] = kp.tolist()
-        with open('{}/kp_image{}.txt'.format(opt.write_dir, i), 'w') as outfile:
-            outfile.write('{} {}\n'.format(len(kp), len(kp)))
-            for m in range(len(kp)):
-                outfile.write('{} {}\n'.format(kp[m, 0], kp[m, 1]))
+            kp = get_kp_glampoints(image, glampoints, opt.write_dir, '{}_{}'.format(os.path.basename(os.path.normpath(opt.path_images)), i),
+                                   green_channel=opt.green_channel)
+            kp_dict[i] = kp.tolist()
+            with open('{}/kp_image{}.txt'.format(opt.write_dir, i), 'w') as outfile:
+                outfile.write('{} {}\n'.format(len(kp), len(kp)))
+                for m in range(len(kp)):
+                    outfile.write('{} {}\n'.format(kp[m, 0], kp[m, 1]))
