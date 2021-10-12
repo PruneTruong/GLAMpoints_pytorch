@@ -20,4 +20,4 @@ tensorboardX==2.0
 termcolor==1.1.0
 torch==1.4.0
 torchvision==0.5.0
-opencv-contrib-python==3.4.2.17
+opencv-contrib-python==4.2.0.32
